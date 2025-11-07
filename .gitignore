@@ -1,0 +1,12 @@
+.venv/
+venv/
+env/
+*.idea
+.idea/
+*.swp
+*.db
+*.sqlite
+*.sqlite3
+*.log
+instance/
+.env
