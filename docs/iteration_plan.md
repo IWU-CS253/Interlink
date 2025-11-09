@@ -17,10 +17,6 @@
 ### First Iteration: Nov 7 - Nov 12, 2025
 
 *Structure Planning (All team members)*
-- Plan and document app views/pages
-- Design initial database schema
-- Document basic user interactions/navigation
-- Create technical documentation in Markdown
 
 *Skeleton/Infrastructure Development*
 - Back-end Python program with basic request handlers (Casey)
