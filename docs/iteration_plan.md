@@ -5,24 +5,20 @@
   - Hayden
   - Elle
 
-**Important Dependencies:**
-- Database schema and basic app structure must be completed before any user stories
-- User authentication system (User Story #2) is required for most user-specific functionality
-- League creation (User Story #1) must be implemented before team registration (User Story #3) and game management (User Story #4)
-- Team registration (User Story #3) must be implemented before roster management (User Story #7) and joining teams (User Story #6)
-- Game creation and scoring (User Story #4) must be implemented before standings (User Story #9) and schedule viewing (User Story #15)
-
 ## Iteration Timeline
 
 ### First Iteration: Nov 7 - Nov 12, 2025
 
-*Structure Planning (All team members)*
+*Structure Planning (Everyone)*
+- Views (pages)
+- Initial database schema 
+- Basic user interactions / navigation
 
-*Skeleton/Infrastructure Development*
-- Back-end Python program with basic request handlers (Casey)
-- Database schema SQL implementation (Hayden)
-- Basic templates and CSS framework (Ethan)
-- Unit test program structure (Elle)
+*Application Set-Up/Basic Structure (Elle)*
+- Back-end Python program with basic request handlers
+- Database schema SQL implementation
+- Basic templates and CSS framework
+- Unit test program structure
 
 **User Stories for First Iteration:**
 
@@ -45,13 +41,13 @@
 - Create team registration form
 - Implement team data storage
 - Basic team validation
-- **Dependencies:** Requires league system (#1) and user authentication (#2)
+- **Dependencies:** Requires league system (User Story #1) and user authentication (User Story #2)
 
 *#4 Add Game Scores (Ethan)*
 - Priority: 4
 - Create basic score submission form
 - Implement game data storage
-- **Dependencies:** Requires team system (#3) and basic authentication
+- **Dependencies:** Requires team system (User Story #3) and basic authentication
 
 ### Second Iteration: Nov 12 - Nov 19, 2025
 
