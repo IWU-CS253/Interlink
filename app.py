@@ -41,6 +41,14 @@ def close_db(error):
     if hasattr(g, 'sqlite_db'):
         g.sqlite_db.close()
 
+@app.route('/', methods=["GET", "POST"])
+def home_page():
+    return render_template('homepage.html')
+
+@app.route('/create', methods=["POST"])
+def create_league():
+    return redirect(url_for('display_league'))
+
 @app.route('login', methods=['GET','POST'])
 def login():
     error = None
@@ -60,3 +68,4 @@ def logout():
     session.pop('logged_in', None)
     flash('You were logged out')
     return redirect(url_for('show_entries'))
+
