@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+{% block body %}
+    <form action="{{ url_for('create_league') }}" method="post">
+        <dl>
+            <dt>League Name:</dt>
+            <dd><input type="text" size="30" name="league_name" required></dd>
+            <dt>Sport:</dt>
+            <dd><input name="sport" list="sports" placeholder="Sport" required>
+                <datalist id="sports">
+                    <option value="Soccer"></option>
+                    <option value="Football"></option>
+                    <option value="Basketball"></option>
+                    <option value="Volleyball"></option>
+                    <option value="Water Polo"></option>
+                    <option value="Badminton"></option>
+                </datalist>
+            </dd>
+            <dt>Maximum Teams:</dt>
+            <dd><input type="number" size="30" name="max_teams" required></dd>
+            <dd><input type="submit" value="Create"></dd>
+        </dl>
+    </form>
+
+{% endblock %}

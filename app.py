@@ -40,3 +40,12 @@ def close_db(error):
     """Closes the database again at the end of the request."""
     if hasattr(g, 'sqlite_db'):
         g.sqlite_db.close()
+
+@app.route('/', methods=["GET", "POST"])
+def home_page():
+    return render_template('homepage.html')
+
+@app.route('/create', methods=["POST"])
+def create_league():
+    return redirect(url_for('display_league'))
+
