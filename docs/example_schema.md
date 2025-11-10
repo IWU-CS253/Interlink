@@ -14,7 +14,7 @@ Table leagues{
   name         varchar [not null]
   sport        varchar  
   season       varchar 
-  created_by   integer [not null, ref: > users.id]
+  admin(s)   integer [not null, ref: > users.id]
   created_at   datetime 
 }
 
@@ -22,7 +22,7 @@ Table teams{
   id           integer [pk, increment]
   name         varchar [not null]
   league_id    integer [ref: > leagues.id]
-  captain_id   integer [ref: > users.id]
+  team_manager   integer [ref: > users.id]
   created_at   datetime [default: `CURRENT_TIMESTAMP`]
 
   // A league cannot have duplicate team names
