@@ -14,7 +14,7 @@ Table leagues{
   name         varchar [not null]
   sport        varchar  
   season       varchar 
-  created_by   integer [not null, ref: > users.id]
+  admin(s)   integer [not null, ref: > users.id]
   created_at   datetime 
 }
 
