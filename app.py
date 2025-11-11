@@ -49,7 +49,7 @@ def home_page():
 def create_league():
     return redirect(url_for('display_league'))
 
-@app.route('login', methods=['GET','POST'])
+@app.route('/login', methods=['GET','POST'])
 def login():
     error = None
     if request.method == 'POST':
