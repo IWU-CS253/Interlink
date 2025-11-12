@@ -88,17 +88,21 @@ def team_creation():
 
 @app.route('/create_team', methods=["POST"])
 def create_team():
-    db = get_db()
+    if not session.get("logged_in"):
+        return redirect('/login')
+    else:
+        db = get_db()
 
-    # league = db.execute("SELECT id FROM leagues WHERE name=?", [request.form["league"]])
-    # league_row = league.fetchone()
-    # league_id = league_row[0]
+        # league = db.execute("SELECT id FROM leagues WHERE name=?", [request.form["league"]])
+        # league_row = league.fetchone()
+        # league_id = league_row[0]
 
-    db.execute("INSERT INTO teams (name, team_manager) VALUES (?,?)", [request.form["name"], request.form["manager"]])
-    db.commit()
+        db.execute("INSERT INTO teams (name, team_manager) VALUES (?,?)",
+                   [request.form["name"], request.form["manager"]])
+        db.commit()
 
-    flash("Team created successfully")
-    return redirect(url_for("home_page"))
+        flash("Team created successfully")
+        return redirect("/")
 
 @app.route('/login', methods=['GET','POST'])
 def login():
@@ -118,7 +122,7 @@ def login():
             session['logged_in'] = True
             session['username'] = user['username']
             flash('You were logged in')
-            return redirect('homepage.html')
+            return redirect('/')
     return render_template('login.html', error=error)
 
 @app.route('/logout')
@@ -126,7 +130,7 @@ def logout():
     session.pop('logged_in', None)
     session.pop('username', None)
     flash('You were logged out')
-    return redirect('homepage.html')
+    return redirect('/')
 
 #Helper method for making sure there aren't conflicting usernames
 def get_user_by_username(username):
@@ -168,7 +172,7 @@ def signup():
                 session['logged_in'] = True
                 session['username'] = username
                 flash('Account created—welcome!')
-                return redirect('homepage.html')
+                return redirect("/")
     return render_template('signup.html', error=error)
 
   
