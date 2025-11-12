@@ -1,0 +1,10 @@
+{% extends 'layout.html' %}
+{% block body %}
+<body>
+    <ul>
+        {% for team in teams %}
+        <li>{{ team }}</li>
+        {% endfor %}
+    </ul>
+</body>
+{% endblock %}

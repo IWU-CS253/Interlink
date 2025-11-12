@@ -51,7 +51,12 @@ def close_db(error):
 @app.route('/', methods=["GET", "POST"])
 def home_page():
     return render_template('homepage.html')
-
+@app.route('/team_view')
+def team_view():
+    db = get_db()
+    cur = db.execute('SELECT name FROM teams')
+    teams = [row[0] for row in cur.fetchall()]
+    return render_template('team_view.html', teams=teams)
 @app.route('/create', methods=["POST"])
 def create_league():
     return redirect(url_for('display_league'))
