@@ -3,16 +3,16 @@
 <div>
     <div>
       <form action="/create_team" method="post">
-        <input type="hidden" name="id" value="{{ entry.id }}">
+        <input type="hidden" name="id">
         <dl>
           <dt>Team Name:
           <dd><input type="text" size="30" name="name">
-          <dt>League:
-          <dd><select name="league">
-                {% for league in leagues %}
-                    <option value="{{ league }}">{{ league }}</option>
-                {% endfor %}
-              </select>
+{#          <dt>League:#}
+{#          <dd><select name="league">#}
+{#                {% for league in leagues %}#}
+{#                    <option value="{{ league }}">{{ league }}</option>#}
+{#                {% endfor %}#}
+{#              </select>#}
           <dt> Manager:
           <dd><input type="text" size="30" name="manager">
           <dd><input type="submit" value="Update" class="btn btn-primary">
