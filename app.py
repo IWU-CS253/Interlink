@@ -42,7 +42,15 @@ def close_db(error):
     if hasattr(g, 'sqlite_db'):
         g.sqlite_db.close()
 
-@app.route('/login', methods=['GET','POST'])
+@app.route('/', methods=["GET", "POST"])
+def home_page():
+    return render_template('homepage.html')
+
+@app.route('/create', methods=["POST"])
+def create_league():
+    return redirect(url_for('display_league'))
+
+@app.route('login', methods=['GET','POST'])
 def login():
     error = None
     #Try To login
