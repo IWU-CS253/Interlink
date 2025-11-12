@@ -134,3 +134,16 @@ def signup():
                 flash('Account created—welcome!')
                 return redirect('homepage.html')
     return render_template('signup.html', error=error)
+
+  
+@app.route('/submit', methods=['GET', 'POST'])
+def submit_score():
+    if request.method == 'POST':
+        sport = request.form['sport']
+        game_date = request.form['game_date']
+        team1 = request.form['team1']
+        team2 = request.form['team2']
+        score1 = request.form['score1']
+        score2 = request.form['score2']
+
+    return render_template('example_scores.html')
