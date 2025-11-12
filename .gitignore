@@ -10,3 +10,4 @@ env/
 *.log
 instance/
 .env
+/__pycache__
