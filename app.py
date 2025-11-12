@@ -61,6 +61,10 @@ def team_view():
 def create_league():
     return redirect(url_for('display_league'))
 
+@app.route('/league')
+def display_league():
+    return render_template('league.html')
+
 @app.route('/team-creation')
 def team_creation():
     db = get_db()
@@ -69,14 +73,24 @@ def team_creation():
     leagues = [row[0] for row in league_rows]
     return render_template('team_creation.html', leagues = leagues)
 
-@app.route('/league')
-def display_league():
-    return render_template('league.html')
+@app.route('/create_team', methods=["POST"])
+def create_team():
+    db = get_db()
+
+    # league = db.execute("SELECT id FROM leagues WHERE name=?", [request.form["league"]])
+    # league_row = league.fetchone()
+    # league_id = league_row[0]
+
+    db.execute("INSERT INTO teams (name, team_manager) VALUES (?,?)", [request.form["name"], request.form["manager"]])
+    db.commit()
+
+    flash("Team created successfully")
+    return redirect(url_for("home_page"))
 
 @app.route('/login', methods=['GET','POST'])
 def login():
     error = None
-    #Try To login
+    #Try To logi
     if request.method == 'POST':
         username = (request.form.get('username') or '').strip()
         password = request.form.get('password') or ''
@@ -155,17 +169,3 @@ def submit_score():
         score1 = request.form['score1']
         score2 = request.form['score2']
     return render_template('example_scores.html')
-
-@app.route('/create_team', methods=["POST"])
-def create_team():
-    db = get_db()
-
-    # league = db.execute("SELECT id FROM leagues WHERE name=?", [request.form["league"]])
-    # league_row = league.fetchone()
-    # league_id = league_row[0]
-
-    db.execute("INSERT INTO teams (name, team_manager) VALUES (?,?)", [request.form["name"], request.form["manager"]])
-    db.commit()
-
-    flash("Team created successfully")
-    return redirect(url_for("home_page"))
