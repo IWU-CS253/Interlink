@@ -58,7 +58,11 @@ def create_league():
 
 @app.route('/team-creation')
 def team_creation():
-    return render_template('team_creation.html')
+    db = get_db()
+    league = db.execute("SELECT name FROM leagues")
+    league_rows = league.fetchall()
+    leagues = [row[0] for row in league_rows]
+    return render_template('team_creation.html', leagues = leagues)
 
 @app.route('/league')
 def display_league():
@@ -145,5 +149,18 @@ def submit_score():
         team2 = request.form['team2']
         score1 = request.form['score1']
         score2 = request.form['score2']
-
     return render_template('example_scores.html')
+
+@app.route('/create_team', methods=["POST"])
+def create_team():
+    db = get_db()
+
+    # league = db.execute("SELECT id FROM leagues WHERE name=?", [request.form["league"]])
+    # league_row = league.fetchone()
+    # league_id = league_row[0]
+
+    db.execute("INSERT INTO teams (name, team_manager) VALUES (?,?)", [request.form["name"], request.form["manager"]])
+    db.commit()
+
+    flash("Team created successfully")
+    return redirect(url_for("home_page"))
