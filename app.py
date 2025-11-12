@@ -56,6 +56,14 @@ def home_page():
 def create_league():
     return redirect(url_for('display_league'))
 
+@app.route('/team-creation')
+def team_creation():
+    return render_template('team_creation.html')
+
+@app.route('/league')
+def display_league():
+    return render_template('league.html')
+
 @app.route('/login', methods=['GET','POST'])
 def login():
     error = None
