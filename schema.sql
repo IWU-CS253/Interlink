@@ -1,52 +1,60 @@
-Table users {
-  id integer [primary key]
-  username varchar [unique, not null]
-   email varchar [unique, not null]
-  role varchar
-  created_at timestamp
-}
+-- USERS
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-Table leagues{
-  id integer [primary key]
-  name         varchar [not null]
-  sport        varchar
-  season       varchar
-  admin(s)   integer [not null, ref: > users.id]
-  created_at   datetime
-}
+-- LEAGUES
+CREATE TABLE leagues (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    sport TEXT,
+    season TEXT,
+    admin INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (admin) REFERENCES users(id)
+);
 
-Table teams{
-  id           integer [pk, increment]
-  name         varchar [not null]
-  league_id    integer [ref: > leagues.id]
-  team_manager   integer [ref: > users.id]
-  created_at   datetime [default: `CURRENT_TIMESTAMP`]
+-- TEAMS
+CREATE TABLE teams (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    league_id INTEGER,
+    team_manager INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (league_id) REFERENCES leagues(id),
+    FOREIGN KEY (team_manager) REFERENCES users(id),
+    UNIQUE (league_id, name)  -- prevent duplicate team names per league
+);
 
-  // A league cannot have duplicate team names
-  Indexes {
-    (league_id, name) [unique]
-  }
-}
-Table games{
-  id             integer [pk, increment]
-  league_id      integer [ref: > leagues.id]
-  home_team_id   integer [ref: > teams.id]
-  away_team_id   integer [ref: > teams.id]
-  home_score     int
-  away_score     int
-  game_date      datetime
-  created_at     datetime [default: `CURRENT_TIMESTAMP`]
+-- GAMES
+CREATE TABLE games (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    league_id INTEGER,
+    home_team_id INTEGER,
+    away_team_id INTEGER,
+    home_score INTEGER,
+    away_score INTEGER,
+    game_date DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (league_id) REFERENCES leagues(id),
+    FOREIGN KEY (home_team_id) REFERENCES teams(id),
+    FOREIGN KEY (away_team_id) REFERENCES teams(id)
+);
 
-  Indexes {
-    league_id
-    game_date
-  }
-}
+CREATE INDEX idx_games_league_id ON games(league_id);
+CREATE INDEX idx_games_game_date ON games(game_date);
 
-Table memberships {
-  user_id   integer [pk, not null, ref: > users.id]
-  team_id   integer [pk, not null, ref: > teams.id]
-  role      varchar [default: 'player'] // e.g., 'captain', 'player'
-  joined_at datetime [default: `CURRENT_TIMESTAMP`]
-
-}
+-- MEMBERSHIPS
+CREATE TABLE memberships (
+    user_id INTEGER NOT NULL,
+    team_id INTEGER NOT NULL,
+    role TEXT DEFAULT 'player',
+    joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, team_id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (team_id) REFERENCES teams(id)
+);

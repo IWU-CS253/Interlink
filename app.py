@@ -5,6 +5,12 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 
+app.config.update(
+    DATABASE=os.path.join(app.root_path, 'interlinkData.db'),
+    SECRET_KEY='testkey',  # use a strong secret in dev; env var in prod
+)
+
+
 def connect_db():
     """Connects to the specific database."""
     rv = sqlite3.connect(app.config['DATABASE'])
@@ -50,7 +56,7 @@ def home_page():
 def create_league():
     return redirect(url_for('display_league'))
 
-@app.route('login', methods=['GET','POST'])
+@app.route('/login', methods=['GET','POST'])
 def login():
     error = None
     #Try To login
@@ -68,7 +74,7 @@ def login():
             session['logged_in'] = True
             session['username'] = user['username']
             flash('You were logged in')
-            return redirect(url_for('show_entries'))
+            return redirect('homepage.html')
     return render_template('login.html', error=error)
 
 @app.route('/logout')
@@ -76,14 +82,14 @@ def logout():
     session.pop('logged_in', None)
     session.pop('username', None)
     flash('You were logged out')
-    return redirect(url_for('show_entries'))
+    return redirect('homepage.html')
 
 #Helper method for making sure there aren't conflicting usernames
 def get_user_by_username(username):
     db = get_db()
     cur = db.execute('SELECT id, username, password_hash FROM users WHERE username = ?', (username,))
     return cur.fetchone()
-@app.route('/signup')
+@app.route('/signup', methods=["GET","POST"])
 def signup():
     error = None
     if request.method == 'POST':
@@ -118,5 +124,5 @@ def signup():
                 session['logged_in'] = True
                 session['username'] = username
                 flash('Account created—welcome!')
-                return redirect(url_for('show_entries'))
+                return redirect('homepage.html')
     return render_template('signup.html', error=error)
