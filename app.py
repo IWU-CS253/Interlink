@@ -51,24 +51,37 @@ def close_db(error):
 @app.route('/', methods=["GET", "POST"])
 def home_page():
     return render_template('homepage.html')
+
 @app.route('/team_view')
 def team_view():
     db = get_db()
     cur = db.execute('SELECT name FROM teams')
     teams = [row[0] for row in cur.fetchall()]
     return render_template('team_view.html', teams=teams)
-@app.route('/create', methods=["POST"])
-def create_league():
-    return redirect("/league")
 
-@app.route('/league')
-def display_league():
-    return render_template('league.html')
+@app.route('/league_creation', methods=["GET", "POST"])
+def league_creation():
+    if request.method == "POST":
+        db = get_db()
+        db.execute("INSERT into leagues (league_name, sport, max_teams) VALUES (?, ?, ?)", [request.form["league_name"], request.form["sport"], request.form["max_teams"]])
+        db.commit()
+
+        flash("League created successfully.")
+        return redirect(url_for('league_view'))
+
+    return render_template("league_creation.html")
+
+@app.route('/league_view')
+def league_view():
+    db = get_db()
+    cur = db.execute("SELECT league_name, sport, max_teams from leagues")
+    leagues = cur.fetchall()
+    return render_template('league_view.html', leagues=leagues)
 
 @app.route('/team-creation')
 def team_creation():
     db = get_db()
-    league = db.execute("SELECT name FROM leagues")
+    league = db.execute("SELECT league_name FROM leagues")
     league_rows = league.fetchall()
     leagues = [row[0] for row in league_rows]
     return render_template('team_creation.html', leagues = leagues)

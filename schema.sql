@@ -10,9 +10,9 @@ CREATE TABLE users (
 -- LEAGUES
 CREATE TABLE leagues (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
+    league_name TEXT NOT NULL,
     sport TEXT,
-    season TEXT,
+    max_teams INTEGER NOT NULL,
     admin INTEGER NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (admin) REFERENCES users(id)
