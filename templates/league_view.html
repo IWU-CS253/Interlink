@@ -1,0 +1,10 @@
+{% extends 'layout.html' %}
+{% block body %}
+<body>
+    <ul>
+        {% for league_name in leagues %}
+        <li>{{ league_name }}</li>
+        {% endfor %}
+    </ul>
+</body>
+{% endblock %}
