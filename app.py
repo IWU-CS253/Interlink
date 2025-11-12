@@ -75,7 +75,8 @@ def league_creation():
 def league_view():
     db = get_db()
     cur = db.execute("SELECT league_name, sport, max_teams from leagues")
-    leagues = cur.fetchall()
+    league_rows = cur.fetchall()
+    leagues = [row[0] for row in league_rows]
     return render_template('league_view.html', leagues=leagues)
 
 @app.route('/team-creation')
@@ -93,12 +94,12 @@ def create_team():
     else:
         db = get_db()
 
-        # league = db.execute("SELECT id FROM leagues WHERE name=?", [request.form["league"]])
-        # league_row = league.fetchone()
-        # league_id = league_row[0]
+        league = db.execute("SELECT id FROM leagues WHERE league_name=?", [request.form["league"]])
+        league_row = league.fetchone()
+        league_id = league_row[0]
 
-        db.execute("INSERT INTO teams (name, team_manager) VALUES (?,?)",
-                   [request.form["name"], request.form["manager"]])
+        db.execute("INSERT INTO teams (name, team_manager, league_id) VALUES (?,?, ?)",
+                   [request.form["name"], request.form["manager"], league_id])
         db.commit()
 
         flash("Team created successfully")

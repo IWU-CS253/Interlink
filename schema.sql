@@ -13,7 +13,7 @@ CREATE TABLE leagues (
     league_name TEXT NOT NULL,
     sport TEXT,
     max_teams INTEGER NOT NULL,
-    admin INTEGER NOT NULL,
+    admin INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (admin) REFERENCES users(id)
 );
