@@ -76,13 +76,17 @@ All planned user stories for this iteration were completed and merged into main
 - Currently, no CSS or Bootstrap
 - Focused more on backend functionality
 
+*Unittesting*
+- Unittests for the first iteration features are not fully finished
+- Currently, there are only unittests for league and team creation
+
 ### Troubles/Issues/Roadblocks/Difficulties Encountered
 
 *Technical Issues*
 - Some SQL reference errors. Initial database schema did not match with some SQL references made in code
 
 *Resolution*
-- The issue with our schema, as well as other minor issues that were not very notable, were all easily resolved when we worked together collaboratively and looked over the application togehter
+- The issue with our schema, as well as other minor issues that were not very notable, were all easily resolved when we worked together collaboratively and looked over the application together
 
 ### Adjustments to Overall Design
 
@@ -125,6 +129,7 @@ Furthermore, it allowed us to be more consistent with the way we implemented dif
 
 *General Features*
 - Work on CSS and Bootstrap for styling
+- Develop more specific unit tests for Iteration 1 features, especially user login security
 - Develop unit tests for new features in Iteration 2
 
 ### Third Iteration: Nov 19 - Nov 26, 2025
