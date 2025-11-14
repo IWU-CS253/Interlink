@@ -108,7 +108,7 @@ def create_team():
 @app.route('/login', methods=['GET','POST'])
 def login():
     error = None
-    #Try To logi
+    #Try To log in
     if request.method == 'POST':
         username = (request.form.get('username') or '').strip()
         password = request.form.get('password') or ''
@@ -187,3 +187,7 @@ def submit_score():
         score1 = request.form['score1']
         score2 = request.form['score2']
     return render_template('example_scores.html')
+
+@app.route('/del_team', methods=['GET','POST'])
+def del_team():
+    return render_template('/')
