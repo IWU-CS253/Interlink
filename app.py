@@ -94,6 +94,55 @@ def team_creation():
     leagues = [row[0] for row in league_rows]
     return render_template('team_creation.html', leagues = leagues)
 
+@app.route('/join_team_form')
+def join_team_form():
+    sport_selected = request.args.get('sport')
+    league_selected = request.args.get('league_select', None)
+    db = get_db()
+    all_leagues = []
+    cur = db.execute('SELECT league_name FROM leagues WHERE sport=?',[sport_selected])
+    for row in cur.fetchall():
+        all_leagues.append(row[0])
+    teams = []
+
+    if league_selected:
+        selected_id_row = db.execute('SELECT id FROM leagues WHERE league_name=?', [league_selected]).fetchone()
+
+        if selected_id_row:
+            selected_id = selected_id_row[0]
+            cur = db.execute("SELECT name, id FROM teams WHERE league_id = ?", [selected_id])
+            teams = [row[0] for row in cur.fetchall()]
+
+    return render_template('join_team.html', teams=teams, all_leagues=all_leagues, league_selected=league_selected, sport_selected = sport_selected)
+
+@app.route('/join_team_submit', methods=["POST"])
+def join_team_submit():
+    if not session.get("logged_in"):
+        flash("Please log in to join a team!")
+        return redirect("/login")
+
+    team_name = request.form["team"]
+    username = session.get("username")
+    db = get_db()
+
+    player = get_user_by_username(username)
+    user_id = player[0]
+    cur = db.execute('SELECT id FROM teams where name =?', [team_name])
+    team_id = cur.fetchone()[0]
+
+    existing = db.execute(
+        'SELECT * FROM memberships WHERE user_id = ? AND team_id = ?',
+        [user_id, team_id]).fetchone()
+
+    if existing:
+        flash("You are already a member of this team!")
+        return redirect("/join_team_form")
+
+    db.execute('INSERT INTO memberships (user_id, team_id) VALUES (?,?)', [user_id, team_id])
+    db.commit()
+    flash("Joined The Team!")
+    return redirect("/join_team_form")
+
 @app.route('/create_team', methods=["POST"])
 def create_team():
     if not session.get("logged_in"):
@@ -115,7 +164,7 @@ def create_team():
 @app.route('/login', methods=['GET','POST'])
 def login():
     error = None
-    #Try To logi
+    #Try To log in
     if request.method == 'POST':
         username = (request.form.get('username') or '').strip()
         password = request.form.get('password') or ''
@@ -194,3 +243,7 @@ def submit_score():
         score1 = request.form['score1']
         score2 = request.form['score2']
     return render_template('example_scores.html')
+
+@app.route('/del_team', methods=['GET','POST'])
+def del_team():
+    return render_template('/')
