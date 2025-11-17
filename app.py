@@ -217,7 +217,9 @@ def submit_score():
 @app.route('/scores')
 def view_scores():
     db = get_db()
-    cur = db.execute("SELECT id, game_date, home_score, away_score FROM games ORDER BY game_date DESC")
+    cur = db.execute("SELECT games.id, games.game_date, games.home_score, games.away_score, teams.name as home_team,"
+                     " teams2.name as away_team FROM games JOIN teams ON games.home_team_id = "
+                     "teams.id JOIN teams as teams2 ON games.away_team_id = teams2.id ORDER BY games.game_date DESC")
     games = cur.fetchall()
 
     #Still working on admin chck
