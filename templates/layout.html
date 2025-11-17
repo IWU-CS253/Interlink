@@ -12,7 +12,7 @@
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
+        <div class="collapse navbar-collapse w-100" id="navbarNav">
             <ul class="navbar-nav">
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('team_creation') }}">Create Team</a>
@@ -32,21 +32,18 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('submit_score') }}">Submit Score</a>
                 </li>
-                <li class="nav-item">
-                    <div class="ms-auto">
-                        {% if session.get('logged_in') %}
-                            <span class="navbar-text me-3">
-                                Logged in as <strong>{{ session['username'] }}</strong>
-                            </span>
-                            <a class="btn btn-outline-danger btn-sm" href="{{ url_for('logout') }}">Logout</a>
-                        {% else %}
-                            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('login') }}">Login</a>
-                        {% endif %}
-                    </div>
-                </li>
             </ul>
+            <div class="ms-auto navbar navbar-expand-lg navbar-light bg-light px-3">
+                {% if session.get('logged_in') %}
+                    <span class="navbar-text me-3 float-end">
+                        Logged in as <strong>{{ session['username'] }}</strong>
+                    </span>
+                    <a class="btn btn-outline-danger btn-sm float-end" href="{{ url_for('logout') }}" >Logout</a>
+                {% else %}
+                    <a class="btn btn-outline-primary btn-sm float-end" href="{{ url_for('login') }}">Login</a>
+                {% endif %}
+            </div>
         </div>
-
     </nav>
 
        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
