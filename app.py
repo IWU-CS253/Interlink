@@ -50,7 +50,10 @@ def close_db(error):
 
 @app.route('/', methods=["GET", "POST"])
 def home_page():
-    return render_template('homepage.html')
+    db = get_db()
+    cur = db.execute("SELECT id, league_name,sport,max_teams,status from leagues where status in ('active','signup') order by status desc, created_at")
+    leagues = cur.fetchall()
+    return render_template('homepage.html', leagues=leagues)
 
 @app.route('/team_view')
 def team_view():
