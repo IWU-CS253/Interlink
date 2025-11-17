@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+{% block body %}
+<form action="/submit_score" method="post">
+        <dl>
+            <dt>League:</dt>
+            <dd>
+                <select name="league_id" required>
+                    <option value="">Select League</option>
+                    {% for league in leagues %}
+                    <option value="{{ league.id }}">{{ league.league_name }}</option>
+                    {% endfor %}
+                </select>
+            </dd>
+
+            <dt>Home Team:</dt>
+            <dd>
+                <select name="home_team_id" required>
+                    <option value="">Select Home Team</option>
+                    {% for team in teams %}
+                    <option value="{{ team.id }}">{{ team.name }}</option>
+                    {% endfor %}
+                </select>
+            </dd>
+
+            <dt>Away Team:</dt>
+            <dd>
+                <select name="away_team_id" required>
+                    <option value="">Select Away Team</option>
+                    {% for team in teams %}
+                    <option value="{{ team.id }}">{{ team.name }}</option>
+                    {% endfor %}
+                </select>
+            </dd>
+
+            <dt>Home Score:</dt>
+            <dd><input type="number" name="home_score" min="0" required></dd>
+
+            <dt>Away Score:</dt>
+            <dd><input type="number" name="away_score" min="0" required></dd>
+
+            <dt>Game Date:</dt>
+            <dd><input type="date" name="game_date" required></dd>
+
+            <dd>
+                <input type="submit" value="Submit Score" class="btn btn-primary">
+                <a href="{{ url_for('view_scores') }}" class="btn btn-secondary">View Scores</a>
+            </dd>
+        </dl>
+    </form>
+{% endblock %}

@@ -15,6 +15,7 @@ CREATE TABLE leagues (
     max_teams INTEGER NOT NULL,
     admin INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status TEXT not null default 'SignUp',
     FOREIGN KEY (admin) REFERENCES users(id)
 );
 
