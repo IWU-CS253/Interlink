@@ -9,17 +9,6 @@
     <nav class="navbar navbar-expand-lg navbar-light bg-light px-3">
         <a class="navbar-brand" href="{{ url_for('home_page') }}">InterLink</a>
 
-        <div class="ms-auto">
-            {% if session.get('logged_in') %}
-                <span class="navbar-text me-3">
-                    Logged in as <strong>{{ session['username'] }}</strong>
-                </span>
-                <a class="btn btn-outline-danger btn-sm" href="{{ url_for('logout') }}">Logout</a>
-            {% else %}
-                <a class="btn btn-outline-primary btn-sm" href="{{ url_for('login') }}">Login</a>
-            {% endif %}
-        </div>
-
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -39,6 +28,21 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('join_team_form') }}">Join Team</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('submit_score') }}">Submit Score</a>
+                </li>
+                <li class="nav-item">
+                    <div class="ms-auto">
+                        {% if session.get('logged_in') %}
+                            <span class="navbar-text me-3">
+                                Logged in as <strong>{{ session['username'] }}</strong>
+                            </span>
+                            <a class="btn btn-outline-danger btn-sm" href="{{ url_for('logout') }}">Logout</a>
+                        {% else %}
+                            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('login') }}">Login</a>
+                        {% endif %}
+                    </div>
                 </li>
             </ul>
         </div>
