@@ -233,16 +233,52 @@ def signup():
     return render_template('signup.html', error=error)
 
   
-@app.route('/submit', methods=['GET', 'POST'])
+@app.route('/submit_score', methods=['GET', 'POST'])
 def submit_score():
+    if not session.get('logged_in'):
+        flash('Please log in to submit scores.')
+        return redirect(url_for('login'))
+
+    db = get_db()
+
     if request.method == 'POST':
-        sport = request.form['sport']
+        league_id = request.form['league_id']
+        home_team_id = request.form['home_team_id']
+        away_team_id = request.form['away_team_id']
+        home_score = request.form['home_score']
+        away_score = request.form['away_score']
         game_date = request.form['game_date']
-        team1 = request.form['team1']
-        team2 = request.form['team2']
-        score1 = request.form['score1']
-        score2 = request.form['score2']
-    return render_template('example_scores.html')
+
+        # Simple validation
+        if not home_score.isdigit() or not away_score.isdigit():
+            flash('Scores must be numbers')
+        elif int(home_score) < 0 or int(away_score) < 0:
+            flash('Scores cannot be negative')
+        elif home_team_id == away_team_id:
+            flash('Teams must be different')
+        else:
+            try:
+                db.execute(
+                    "INSERT into games (league_id, home_team_id, away_team_id, home_score, away_score, game_date) VALUES (?, ?, ?, ?, ?, ?)",
+                    [league_id, home_team_id, away_team_id, home_score, away_score, game_date])
+                db.commit()
+                flash('Score submitted successfully!')
+                return redirect(url_for('view_scores'))
+            except:
+                flash('Error saving score')
+
+    leagues = db.execute("SELECT id, league_name FROM leagues")
+    teams = db.execute("SELECT id, name FROM teams")
+    return render_template('submit_score.html', leagues=leagues.fetchall(), teams=teams.fetchall())
+@app.route('/scores')
+def view_scores():
+    db = get_db()
+    cur = db.execute("SELECT id, game_date, home_score, away_score FROM games ORDER BY game_date DESC")
+    games = cur.fetchall()
+
+    #Still working on admin chck
+
+    return render_template('score_view.html', games=games)
 
 @app.route('/del_team', methods=['GET','POST'])
 def del_team():
