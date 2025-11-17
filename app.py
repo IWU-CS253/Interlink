@@ -181,6 +181,7 @@ def login():
         else:
             session['logged_in'] = True
             session['username'] = user['username']
+            session['role'] = user['role']
             flash('You were logged in')
             return redirect('/')
     return render_template('login.html', error=error)
@@ -189,13 +190,14 @@ def login():
 def logout():
     session.pop('logged_in', None)
     session.pop('username', None)
+    session.pop('role', None)
     flash('You were logged out')
     return redirect('/')
 
 #Helper method for making sure there aren't conflicting usernames
 def get_user_by_username(username):
     db = get_db()
-    cur = db.execute('SELECT id, username, password_hash FROM users WHERE username = ?', (username,))
+    cur = db.execute('SELECT id, username, password_hash, role FROM users WHERE username = ?', (username,))
     return cur.fetchone()
 @app.route('/signup', methods=["GET","POST"])
 def signup():
@@ -286,3 +288,34 @@ def view_scores():
 @app.route('/del_team', methods=['GET','POST'])
 def del_team():
     return render_template('/')
+
+#helper for admin page
+def get_current_user():
+    username = session.get('username')
+    if not username:
+        return None
+    return get_user_by_username(username)
+
+@app.route('/league_manage')
+def league_manage():
+    #first check that user is logged in
+    if not session.get('logged_in'):
+        flash('Please log in to access that page.')
+        return redirect(url_for('login'))
+
+    #get active user from helper function and then check if they exist and are admin
+    activeuser = get_current_user()
+
+    if activeuser is None or activeuser['role'] != "admin":
+        flash("You do not have permission to view that page.")
+        return redirect('/')
+
+    #actual logic before redirect
+    db = get_db()
+    cur = db.execute(
+        "SELECT id, league_name, sport, max_teams, status "
+        "FROM leagues ORDER BY created_at DESC"
+    )
+    leagues = cur.fetchall()
+    return render_template('league_manage.html', leagues=leagues)
+

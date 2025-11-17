@@ -13,6 +13,9 @@
             {% if session.get('logged_in') %}
                 <span class="navbar-text me-3">
                     Logged in as <strong>{{ session['username'] }}</strong>
+                 {% if session.get('role') == 'admin' %}
+                    <span class="badge bg-danger ms-2">Admin</span>
+                {% endif %}
                 </span>
                 <a class="btn btn-outline-danger btn-sm" href="{{ url_for('logout') }}">Logout</a>
             {% else %}
