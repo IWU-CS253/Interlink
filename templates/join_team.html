@@ -1,0 +1,74 @@
+{% extends "layout.html" %}
+{% block body %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const league_find = document.getElementById('league_find');
+            const Volleyball = document.getElementById('Volleyball');
+            const Football = document.getElementById('Football')
+            const Basketball = document.getElementById('Basketball')
+            const Soccer = document.getElementById('Soccer')
+            const Water_polo = document.getElementById('Water Polo')
+            const Badminton = document.getElementById('Badminton')
+
+            Volleyball.addEventListener('change', function() {
+                league_find.submit();
+            });
+            Football.addEventListener('change', function() {
+                league_find.submit();
+            });
+            Basketball.addEventListener('change', function() {
+                league_find.submit();
+            });
+            Soccer.addEventListener('change', function() {
+                league_find.submit();
+            });
+            Water_polo.addEventListener('change', function() {
+                league_find.submit();
+            });
+            Badminton.addEventListener('change', function() {
+                league_find.submit();
+            });
+        });
+    </script>
+<div class="m-3">
+<form id="league_find" method="get" action="{{ url_for('join_team_form') }}" >
+        <input type="radio" id="Volleyball" name="sport" value="Volleyball" {% if sport_selected == "Volleyball" %}checked{% endif %}>
+        <label for="Volleyball">Volleyball</label><br>
+
+        <input type="radio" id="Football" name="sport" value="Football" {% if sport_selected == "Football" %}checked{% endif %}>
+        <label for="Football">Football</label><br>
+
+        <input type="radio" id="Basketball" name="sport" value="Basketball" {% if sport_selected == "Basketball" %}checked{% endif %}>
+        <label for="Basketball">Basketball</label><br>
+
+        <input type="radio" id="Soccer" name="sport" value="Soccer" {% if sport_selected == "Soccer" %}checked{% endif %}>
+        <label for="Soccer">Soccer</label><br>
+
+        <input type="radio" id="Water Polo" name="sport" value="Water Polo" {% if sport_selected == "Water Polo" %}checked{% endif %}>
+        <label for="Water Polo">Water Polo</label><br>
+
+        <input type="radio" id="Badminton" name="sport" value="Badminton" {% if sport_selected == "Badminton" %}checked{% endif %}>
+        <label for="Badminton">Badminton</label><br>
+</form>
+<form  id="team_find" method="get" action="{{ url_for('join_team_form') }}" >
+<dt class="mt-3">Select League</dt>
+<select class="form-select form-select-lg w-25 mb-3" name="league_select" onchange="this.form.submit()">
+    <option disabled selected></option>
+   {% for league in all_leagues %}
+       <option value="{{ league }}" class="dropdown-item">{{ league }}</option>
+   {% endfor %}
+</select>
+ </form>
+ <form action="/join_team_submit" method="post">
+   <dl>
+   <dt>Team</dt>
+    <dd><select class="form-select form-select-lg w-25 mb-3" name="team" multiple required>
+        {% for team in teams %}
+            <option value="{{ team }}" class="dropdown-item">{{ team }}</option>
+        {% endfor %}
+    </select></dd>
+   <dd><button type="submit" class="btn btn-secondary">Submit</button></dd>
+   </dl>
+ </form>
+</div>
+{% endblock %}
