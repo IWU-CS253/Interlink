@@ -271,7 +271,7 @@ def submit_score():
                 flash('Score submitted successfully!')
                 return redirect(url_for('view_scores'))
             except:
-                flash('Error saving score')
+                flash('Error Saving Score')
 
     leagues = db.execute("SELECT id, league_name FROM leagues")
     teams = db.execute("SELECT id, name FROM teams")
@@ -322,3 +322,36 @@ def league_manage():
     leagues = cur.fetchall()
     return render_template('league_manage.html', leagues=leagues)
 
+@app.route('/edit_score', methods=['GET', 'POST'])
+def edit_score():
+    #ADMIN CHECK STILL NEEDED
+    db = get_db()
+
+    game_id = request.args.get('game_id')
+
+    if not game_id or not game_id.isdigit():
+        flash('Game not found.')
+        return redirect(url_for('view_scores'))
+
+    if request.method == 'POST':
+        home_score = request.form['home_score']
+        away_score = request.form['away_score']
+
+        if not home_score.isdigit() or not away_score.isdigit():
+            flash('Scores must be numbers')
+        elif int(home_score) < 0 or int(away_score) < 0:
+            flash('Scores cannot be negative')
+        else:
+            db.execute("UPDATE games SET home_score = ?, away_score = ? WHERE id = ?",[home_score, away_score, game_id])
+            db.commit()
+            flash('Score updated successfully!')
+            return redirect(url_for('view_scores'))
+
+    game = db.execute("SELECT id, home_score, away_score, game_date FROM games WHERE id = ?", [game_id])
+    game = game.fetchone()
+
+    if not game:
+        flash('Game not found.')
+        return redirect(url_for('view_scores'))
+
+    return render_template('edit_score.html', game=game)
