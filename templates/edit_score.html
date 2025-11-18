@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block body %}
+    <form action="{{ url_for('edit_score') }}?game_id={{ game.id }}" method="post">
+        <dl>
+            <dt>Game ID:</dt>
+            <dd>{{ game.id }}</dd>
+
+            <dt>Date:</dt>
+            <dd>{{ game.game_date }}</dd>
+
+            <dt>Home Score:</dt>
+            <dd><input type="number" name="home_score" value="{{ game.home_score }}" min="0" required></dd>
+
+            <dt>Away Score:</dt>
+            <dd><input type="number" name="away_score" value="{{ game.away_score }}" min="0" required></dd>
+
+            <dd>
+                <input type="submit" value="Update Score" class="btn btn-primary">
+                <a href="{{ url_for('view_scores') }}" class="btn btn-secondary">Cancel</a>
+            </dd>
+        </dl>
+    </form>
+{% endblock %}
