@@ -74,19 +74,20 @@ def league_creation():
 
     return render_template("league_creation.html")
 
-@app.route('/league_view')
+@app.route('/league_view', methods=["GET", "POST"])
 def league_view():
-    search = request.args.get('search', None)
+    filter = request.args.get('filter', None)
     db = get_db()
 
-    if search:
-        cur = db.execute('SELECT league_name, sport, max_teams FROM leagues where SPORT=?', (search,))
+    if filter:
+        cur = db.execute('SELECT league_name, sport, max_teams FROM leagues where sport=? ORDER BY league_name', (filter,))
         league_rows = cur.fetchall()
         leagues = [row[0] for row in league_rows]
     else:
-        cur = db.execute("SELECT league_name, sport, max_teams from leagues")
+        cur = db.execute("SELECT league_name, sport, max_teams from leagues ORDER BY league_name")
         league_rows = cur.fetchall()
         leagues = [row[0] for row in league_rows]
+
     return render_template('league_view.html', leagues=leagues)
 
 @app.route('/team-creation')
