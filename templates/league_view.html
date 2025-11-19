@@ -13,13 +13,13 @@
                     <option value="Badminton">Badminton</option>
                 </datalist>
             </div>
-          <div class="col-auto">
+            <div class="col-auto">
               <button type="submit" class="btn btn-secondary">Filter</button>
-          </div>
-        <div class="col-auto">
-            <a href="{{ url_for('league_view') }}" class="btn btn-secondary">Reset Filters</a>
+            </div>
+            <div class="col-auto">
+                <a href="{{ url_for('league_view') }}" class="btn btn-secondary">Reset Filters</a>
+            </div>
         </div>
-
     </form>
     {% for league in leagues %}
         <div>

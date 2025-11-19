@@ -50,11 +50,11 @@ def close_db(error):
 
 @app.route('/', methods=["GET", "POST"])
 def home_page():
-    search = request.args.get('search', None)
+    filter = request.args.get('filter', None)
     db = get_db()
 
-    if search:
-        cur = db.execute('SELECT id, league_name, sport, max_teams, status FROM leagues where SPORT=?', (search,))
+    if filter:
+        cur = db.execute('SELECT id, league_name, sport, max_teams, status FROM leagues where SPORT=?', (filter,))
         leagues = cur.fetchall()
 
     else:
@@ -62,10 +62,6 @@ def home_page():
         leagues = cur.fetchall()
 
     return render_template('homepage.html', leagues=leagues)
-    # db = get_db()
-    # cur = db.execute("SELECT id, league_name,sport,max_teams,status from leagues where status in ('active','signup') order by status desc, created_at")
-    # leagues = cur.fetchall()
-    # return render_template('homepage.html', leagues=leagues)
 
 @app.route('/team_view', methods=["GET"])
 def team_view():
