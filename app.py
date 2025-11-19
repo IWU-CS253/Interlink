@@ -279,17 +279,20 @@ def submit_score():
     if not session.get('logged_in'):
         flash('Please log in to submit scores.')
         return redirect(url_for('login'))
-
     db = get_db()
 
+    league_selected = request.args.get('league_selected')
+    print(league_selected)
+    teams = []
+
     if request.method == 'POST':
-        league_id = request.form['league_id']
+        league_selected = request.form['league_selected']
         home_team_id = request.form['home_team_id']
         away_team_id = request.form['away_team_id']
         home_score = request.form['home_score']
         away_score = request.form['away_score']
         game_date = request.form['game_date']
-
+        print(league_selected)
         # Simple validation
         if not home_score.isdigit() or not away_score.isdigit():
             flash('Scores must be numbers')
@@ -301,16 +304,20 @@ def submit_score():
             try:
                 db.execute(
                     "INSERT into games (league_id, home_team_id, away_team_id, home_score, away_score, game_date) VALUES (?, ?, ?, ?, ?, ?)",
-                    [league_id, home_team_id, away_team_id, home_score, away_score, game_date])
+                    [league_selected, home_team_id, away_team_id, home_score, away_score, game_date])
                 db.commit()
                 flash('Score submitted successfully!')
                 return redirect(url_for('view_scores'))
             except:
                 flash('Error Saving Score')
+    if league_selected:
+            cur = db.execute("SELECT name, id FROM teams WHERE league_id = ?", [league_selected])
+            teams = cur.fetchall()
 
-    leagues = db.execute("SELECT id, league_name FROM leagues")
-    teams = db.execute("SELECT id, name FROM teams")
-    return render_template('submit_score.html', leagues=leagues.fetchall(), teams=teams.fetchall())
+    leagues = db.execute("SELECT id, league_name FROM leagues").fetchall()
+
+    return render_template('submit_score.html', leagues=leagues, teams=teams, league_selected = league_selected)
+
 @app.route('/scores')
 def view_scores():
     db = get_db()
