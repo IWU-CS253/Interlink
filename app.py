@@ -50,17 +50,32 @@ def close_db(error):
 
 @app.route('/', methods=["GET", "POST"])
 def home_page():
+    search = request.args.get('search', None)
     db = get_db()
-    cur = db.execute("SELECT id, league_name,sport,max_teams,status from leagues where status in ('active','signup') order by status desc, created_at")
-    leagues = cur.fetchall()
-    return render_template('homepage.html', leagues=leagues)
 
-@app.route('/team_view')
+    if search:
+        cur = db.execute('SELECT id, league_name, sport, max_teams, status FROM leagues where SPORT=?', (search,))
+        leagues = cur.fetchall()
+
+    else:
+        cur = db.execute("SELECT id, league_name, sport, max_teams, status from leagues")
+        leagues = cur.fetchall()
+
+    return render_template('homepage.html', leagues=leagues)
+    # db = get_db()
+    # cur = db.execute("SELECT id, league_name,sport,max_teams,status from leagues where status in ('active','signup') order by status desc, created_at")
+    # leagues = cur.fetchall()
+    # return render_template('homepage.html', leagues=leagues)
+
+@app.route('/team_view', methods=["GET"])
 def team_view():
-    db = get_db()
-    cur = db.execute('SELECT name FROM teams')
-    teams = [row[0] for row in cur.fetchall()]
-    return render_template('team_view.html', teams=teams)
+    team_name= request.args.get("team_name")
+    league_name= request.args.get("league_name")
+    team_manager= request.args.get("team_manager")
+    sport= request.args.get("sport")
+    league_status = request.args.get('league_status')
+
+    return render_template('team_view.html', team_name=team_name, league_name=league_name, team_manager=team_manager, sport=sport, league_status=league_status)
 
 @app.route('/league_creation', methods=["GET", "POST"])
 def league_creation():
@@ -70,7 +85,7 @@ def league_creation():
         db.commit()
 
         flash("League created successfully.")
-        return redirect(url_for('league_view'))
+        return redirect(url_for('home_page'))
 
     return render_template("league_creation.html")
 
@@ -109,10 +124,13 @@ def join_team_form():
         all_leagues.append(row[0])
     teams = []
 
+    #Checks if a league has been selected
     if league_selected:
         selected_id_row = db.execute('SELECT id FROM leagues WHERE league_name=?', [league_selected]).fetchone()
 
+        # Checks if the leagues row exists
         if selected_id_row:
+            # Finds the teams in that league
             selected_id = selected_id_row[0]
             cur = db.execute("SELECT name, id FROM teams WHERE league_id = ?", [selected_id])
             teams = [row[0] for row in cur.fetchall()]
@@ -134,6 +152,7 @@ def join_team_submit():
     cur = db.execute('SELECT id FROM teams where name =?', [team_name])
     team_id = cur.fetchone()[0]
 
+    #Checks that the user is not already a member of the team
     existing = db.execute(
         'SELECT * FROM memberships WHERE user_id = ? AND team_id = ?',
         [user_id, team_id]).fetchone()
@@ -238,7 +257,7 @@ def signup():
                 return redirect("/")
     return render_template('signup.html', error=error)
 
-  
+
 @app.route('/submit_score', methods=['GET', 'POST'])
 def submit_score():
     if not session.get('logged_in'):
@@ -322,6 +341,32 @@ def league_manage():
     leagues = cur.fetchall()
     return render_template('league_manage.html', leagues=leagues)
 
+@app.route('/league/<int:league_id>')
+def league_page(league_id):
+    db = get_db()
+
+    league = db.execute('SELECT * FROM leagues WHERE id = ?', (league_id,)).fetchone()
+
+    if league is None:
+        flash("League not found")
+        return redirect(url_for('league_view'))
+
+    teams = db.execute('SELECT * FROM teams WHERE league_id = ?', (league_id,)).fetchall()
+    return render_template('league_page.html',
+                           league=league,
+                           teams=teams)
+
+@app.route('/change_phase', methods=["GET"])
+def change():
+    league_status=request.args.get('status')
+    db = get_db()
+    if league_status=="SignUp":
+        db.execute('UPDATE leagues SET status = "Active"')
+    elif league_status=="Active":
+        db.execute('UPDATE leagues SET status = "SignUp"')
+    db.commit()
+    return redirect('/')
+  
 @app.route('/edit_score', methods=['GET', 'POST'])
 def edit_score():
     #ADMIN CHECK STILL NEEDED

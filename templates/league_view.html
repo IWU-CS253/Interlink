@@ -1,6 +1,5 @@
 {% extends 'layout.html' %}
 {% block body %}
-<body>
     <form action="{{ url_for('league_view') }}" method="get">
         <div class="row g-2 mb-3">
             <div class="col-auto">
@@ -28,5 +27,4 @@
             <h6>{{ league.sport }}</h6>
         </div>
     {% endfor %}
-</body>
 {% endblock %}

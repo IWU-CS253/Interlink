@@ -1,4 +1,15 @@
 {% extends "layout.html" %}
 {% block body %}
-
+    <h1 class="m-2">Leagues</h1>
+    {% for league in leagues %}
+        <div class="card mb-3 mx-2">
+            <div class="card-body">
+                <h5>{{ league['league_name'] }}</h5>
+                <p>Sport: {{ league['sport'] }}</p>
+                <p>Status: {{ league['status'] }}</p>
+                <a href="{{ url_for('league_page', league_id=league['id']) }}"
+                   class="btn btn-primary">View League Details</a>
+            </div>
+        </div>
+    {% endfor %}
 {% endblock %}

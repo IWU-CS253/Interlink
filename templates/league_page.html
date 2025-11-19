@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="m-4">
+    <h1>{{ league['league_name'] }}</h1>
+    <div>
+        <div>
+            <p><strong>Sport:</strong> {{ league['sport'] }}</p>
+            <p><strong>Max Teams:</strong> {{ league['max_teams'] }}</p>
+            <p><strong>Status:</strong>
+                <span>
+                    {{ league['status']|upper }}
+                </span>
+            </p>
+            <p><strong>Teams:</strong></p>
+            <ul>
+                {% for team in teams %}
+                <li><a style="color: black" class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover" href="{{ url_for('team_view', team_name=team["name"], league_name=league["league_name"],
+                team_manager=team["team_manager"], sport=league["sport"], league_status = league["status"]) }}">{{ team["name"] }}</a></li>
+                {% endfor %}
+            </ul>
+                <a href="{{ url_for('join_team_form', sport=league['sport'], league_select=league['league_name']) }}"
+                class="btn btn-success" {% if league['status'] !='SignUp' %} hidden {% endif %}>Join a Team in This League</a>
+        </div>
+        <form action="/change_phase" method="get">
+            <input type="hidden" name="status" value="{{ league["status"] }}">
+            <button type="submit">change</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

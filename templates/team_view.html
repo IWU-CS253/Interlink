@@ -1,8 +1,22 @@
 {% extends 'layout.html' %}
 {% block body %}
-    <ul>
-        {% for team in teams %}
-        <li>{{ team }}</li>
-        {% endfor %}
-    </ul>
+<div class="m-4">
+    <div class="d-flex ">
+        <h1>{{ team_name }}</h1>
+        <form action="/join_team_submit" method="post">
+            <input type="hidden" name="team" value="{{ team_name }}">
+            <button class="btn btn-success ms-3 mt-2" type="submit" {% if league_status != 'SignUp' %} hidden {% endif %}>Join Team</button>
+        </form>
+    </div>
+    <div>
+        <div>
+            <p><strong>League:</strong> {{ league_name }}</p>
+            <p><strong>Sport:</strong> {{ sport }}</p>
+            <p><strong>Manager:</strong> {{ team_manager }}</p>
+        </div>
+        <div class="mt-3">
+            <h6>Upcoming Games</h6>
+        </div>
+    </div>
+</div>
 {% endblock %}
