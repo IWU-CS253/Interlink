@@ -89,9 +89,21 @@ def league_creation():
 
     return render_template("league_creation.html")
 
-# @app.route('/league_view')
-# def league_view():
+@app.route('/league_view', methods=["GET", "POST"])
+def league_view():
+    filter = request.args.get('filter', None)
+    db = get_db()
 
+    if filter:
+        cur = db.execute('SELECT league_name, sport, max_teams FROM leagues where sport=? ORDER BY league_name', (filter,))
+        league_rows = cur.fetchall()
+        leagues = [row[0] for row in league_rows]
+    else:
+        cur = db.execute("SELECT league_name, sport, max_teams from leagues ORDER BY league_name")
+        league_rows = cur.fetchall()
+        leagues = [row[0] for row in league_rows]
+
+    return render_template('league_view.html', leagues=leagues)
 
 @app.route('/team-creation')
 def team_creation():
@@ -278,7 +290,7 @@ def submit_score():
                 flash('Score submitted successfully!')
                 return redirect(url_for('view_scores'))
             except:
-                flash('Error saving score')
+                flash('Error Saving Score')
 
     leagues = db.execute("SELECT id, league_name FROM leagues")
     teams = db.execute("SELECT id, name FROM teams")
@@ -354,3 +366,37 @@ def change():
         db.execute('UPDATE leagues SET status = "SignUp"')
     db.commit()
     return redirect('/')
+  
+@app.route('/edit_score', methods=['GET', 'POST'])
+def edit_score():
+    #ADMIN CHECK STILL NEEDED
+    db = get_db()
+
+    game_id = request.args.get('game_id')
+
+    if not game_id or not game_id.isdigit():
+        flash('Game not found.')
+        return redirect(url_for('view_scores'))
+
+    if request.method == 'POST':
+        home_score = request.form['home_score']
+        away_score = request.form['away_score']
+
+        if not home_score.isdigit() or not away_score.isdigit():
+            flash('Scores must be numbers')
+        elif int(home_score) < 0 or int(away_score) < 0:
+            flash('Scores cannot be negative')
+        else:
+            db.execute("UPDATE games SET home_score = ?, away_score = ? WHERE id = ?",[home_score, away_score, game_id])
+            db.commit()
+            flash('Score updated successfully!')
+            return redirect(url_for('view_scores'))
+
+    game = db.execute("SELECT id, home_score, away_score, game_date FROM games WHERE id = ?", [game_id])
+    game = game.fetchone()
+
+    if not game:
+        flash('Game not found.')
+        return redirect(url_for('view_scores'))
+
+    return render_template('edit_score.html', game=game)
