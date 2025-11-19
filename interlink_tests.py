@@ -53,8 +53,8 @@ class InterlinkTestCase(unittest.TestCase):
     def test_create_team_stores_in_db(self):
         with interlink.app.app_context():
             db = interlink.get_db()
-            db.execute('INSERT INTO users (username, password_hash) VALUES (?, ?)',
-                       ('user', generate_password_hash('123')))
+            db.execute('INSERT INTO users (username, password_hash,name,email) VALUES (?, ?,?,?)',
+                       ('user', generate_password_hash('123')),'real name','test@email.com')
             db.commit()
 
         self.app.post('/login', data=dict(
