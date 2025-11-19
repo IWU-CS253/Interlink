@@ -2,7 +2,6 @@ import os
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, request, g, redirect, url_for, render_template, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
-
 app = Flask(__name__)
 
 app.config.update(
@@ -18,12 +17,15 @@ def connect_db():
     return rv
 
 
+
 def init_db():
     """Initializes the database."""
+    from seed import seed
     db = get_db()
     with app.open_resource('schema.sql', mode='r') as f:
         db.cursor().executescript(f.read())
     db.commit()
+    seed()
 
 
 @app.cli.command('initdb')
@@ -224,8 +226,11 @@ def signup():
     error = None
     if request.method == 'POST':
         username = (request.form.get('username') or '').strip()
+        name = (request.form.get('name') or '')
+        email = (request.form.get('email') or '')
         password = request.form.get('password') or ''
         confirm = request.form.get('confirm') or ''
+
 
         #Simple validation
         if not username or not password:
@@ -243,8 +248,8 @@ def signup():
             try:
                 db = get_db()
                 db.execute(
-                    'INSERT INTO users (username, password_hash) VALUES (?, ?)',
-                    (username, generate_password_hash(password))
+                    'INSERT INTO users (username, password_hash, name, email) VALUES (?, ?, ?, ?)',
+                    (username, generate_password_hash(password), name, email)
                 )
                 db.commit()
             except error:

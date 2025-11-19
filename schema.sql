@@ -4,7 +4,9 @@ CREATE TABLE users (
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     role TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    name TEXT NOT NULL,
+    email TEXT not null
 );
 
 -- LEAGUES
@@ -15,7 +17,7 @@ CREATE TABLE leagues (
     max_teams INTEGER NOT NULL,
     admin INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    status TEXT not null default 'SignUp',
+    status TEXT not null default 'signup',
     FOREIGN KEY (admin) REFERENCES users(id)
 );
 
