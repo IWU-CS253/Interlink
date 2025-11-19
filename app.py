@@ -72,8 +72,23 @@ def team_view():
     team_manager= request.args.get("team_manager")
     sport= request.args.get("sport")
     league_status = request.args.get('league_status')
+    roster = get_roster(team_name)
 
-    return render_template('team_view.html', team_name=team_name, league_name=league_name, team_manager=team_manager, sport=sport, league_status=league_status)
+    return render_template('team_view.html', team_name=team_name, league_name=league_name, team_manager=team_manager, sport=sport, league_status=league_status, roster=roster)
+
+
+# Helper method to get a teams roster with only their team name
+def get_roster(team_name):
+    db = get_db()
+    team_id = db.execute('SELECT id FROM teams WHERE name=?', [team_name]).fetchone()[0]
+    cur = db.execute("SELECT user_id FROM memberships WHERE team_id=?", [team_id])
+    roster_ids = [row[0] for row in cur.fetchall()]
+    roster=[]
+    for player_id in roster_ids:
+        cur=db.execute('SELECT name FROM users WHERE id=?',[player_id])
+        roster.append(cur.fetchone()[0])
+    return roster
+
 
 @app.route('/league_creation', methods=["GET", "POST"])
 def league_creation():
@@ -363,7 +378,7 @@ def change():
     db = get_db()
     if league_status=="SignUp":
         db.execute('UPDATE leagues SET status = "Active"')
-    elif league_status=="Active":
+    elif league_status=="active":
         db.execute('UPDATE leagues SET status = "SignUp"')
     db.commit()
     return redirect('/')
@@ -401,3 +416,4 @@ def edit_score():
         return redirect(url_for('view_scores'))
 
     return render_template('edit_score.html', game=game)
+

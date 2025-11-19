@@ -15,7 +15,15 @@
             <p><strong>Manager:</strong> {{ team_manager }}</p>
         </div>
         <div class="mt-3">
-            <h6>Upcoming Games</h6>
+            <strong>Roster:</strong>
+            {% for player in roster %}
+            <ul>
+                <li>{{ player }}</li>
+            </ul>
+            {% endfor %}
+        </div>
+        <div class="mt-3">
+            <strong>Upcoming Games</strong>
         </div>
     </div>
 </div>
