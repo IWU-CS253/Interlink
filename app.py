@@ -304,7 +304,6 @@ def view_scores():
                      "teams.id JOIN teams as teams2 ON games.away_team_id = teams2.id ORDER BY games.game_date DESC")
     games = cur.fetchall()
 
-    #Still working on admin chck
 
     return render_template('score_view.html', games=games)
 
@@ -370,7 +369,11 @@ def change():
   
 @app.route('/edit_score', methods=['GET', 'POST'])
 def edit_score():
-    #ADMIN CHECK STILL NEEDED
+    activeuser = get_current_user()
+
+    if activeuser is None or activeuser['role'] != "admin":
+        flash("You do not have permission to view that page.")
+        return redirect('/')
     db = get_db()
 
     game_id = request.args.get('game_id')
