@@ -1,6 +1,23 @@
 {% extends "layout.html" %}
 {% block body %}
     <h1 class="m-2">Leagues</h1>
+        <form action="{{ url_for('home_page') }}" method="get">
+            <div class="w-25 m-3">
+                <input name="filter" list="sports" placeholder="Sport" class="form-control" autocomplete="off">
+                <datalist id="sports">
+                    <option value="Volleyball">Volleyball</option>
+                    <option value="Football">Football</option>
+                    <option value="Basketball">Basketball</option>
+                    <option value="Soccer">Soccer</option>
+                    <option value="Water Polo">Water Polo</option>
+                    <option value="Badminton">Badminton</option>
+                </datalist>
+                <div class="m-3">
+                <button type="submit" class="btn btn-secondary">Filter</button>
+                <a href="{{ url_for('home_page') }}" class="btn btn-secondary">Reset</a>
+                </div>
+            </div>
+        </form>
     {% for league in leagues %}
         <div class="card mb-3 mx-2">
             <div class="card-body">
