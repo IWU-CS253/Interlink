@@ -1,17 +1,21 @@
 {% extends "layout.html" %}
 {% block body %}
-<form action="/submit_score" method="post">
         <dl>
             <dt>League:</dt>
             <dd>
-                <select name="league_id" required>
+            <form action="/submit_score" method="get">
+                <select name="league_selected"  onchange="this.form.submit()" required>
                     <option value="">Select League</option>
                     {% for league in leagues %}
-                    <option value="{{ league.id }}">{{ league.league_name }}</option>
+                    <option value="{{ league.id }}" {% if league_selected|int == league.id %}selected{% endif %}>{{ league.league_name }}</option>
                     {% endfor %}
                 </select>
+            </form>
             </dd>
-
+            <form action="/submit_score" method="post">
+                {% if league_selected %}
+                <input type="hidden" name="league_selected" value="{{ league_selected }}">
+                {% endif %}
             <dt>Home Team:</dt>
             <dd>
                 <select name="home_team_id" required>
@@ -45,6 +49,6 @@
                 <input type="submit" value="Submit Score" class="btn btn-primary">
                 <a href="{{ url_for('view_scores') }}" class="btn btn-secondary">View Scores</a>
             </dd>
+            </form>
         </dl>
-    </form>
 {% endblock %}
