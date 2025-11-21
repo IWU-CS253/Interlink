@@ -90,6 +90,7 @@ def get_roster(team_name):
     return roster
 
 
+
 @app.route('/league_creation', methods=["GET", "POST"])
 def league_creation():
     if request.method == "POST":
@@ -334,29 +335,6 @@ def get_current_user():
         return None
     return get_user_by_username(username)
 
-@app.route('/league_manage')
-def league_manage():
-    #first check that user is logged in
-    if not session.get('logged_in'):
-        flash('Please log in to access that page.')
-        return redirect(url_for('login'))
-
-    #get active user from helper function and then check if they exist and are admin
-    activeuser = get_current_user()
-
-    if activeuser is None or activeuser['role'] != "admin":
-        flash("You do not have permission to view that page.")
-        return redirect('/')
-
-    #actual logic before redirect
-    db = get_db()
-    cur = db.execute(
-        "SELECT id, league_name, sport, max_teams, status "
-        "FROM leagues ORDER BY created_at DESC"
-    )
-    leagues = cur.fetchall()
-    return render_template('league_manage.html', leagues=leagues)
-
 @app.route('/league/<int:league_id>')
 def league_page(league_id):
     db = get_db()
@@ -371,6 +349,49 @@ def league_page(league_id):
     return render_template('league_page.html',
                            league=league,
                            teams=teams)
+
+
+@app.route('/league/<int:league_id>/admin')
+def league_admin(league_id):
+    #first check that user is logged in
+    if not session.get('logged_in'):
+        flash('Please log in to access that page.')
+        return redirect(url_for('login'))
+
+    #get active user from helper function and then check if they exist and are admin
+    activeuser = get_current_user()
+    if activeuser is None or activeuser['role'] != "admin":
+        flash("You do not have permission to view that page.")
+        return redirect('/')
+
+    #actual logic before redirect
+    db = get_db()
+    league = db.execute("SELECT * FROM leagues WHERE id = ?",(league_id,)).fetchone()
+    if league is None:
+        flash("League doesn't exist")
+        return redirect(url_for("league_view"))
+
+    #Get all teams in the league
+    team_rows = db.execute(
+        "SELECT id, name FROM teams WHERE league_id = ? ORDER BY name",
+        (league_id,)
+    ).fetchall()
+
+    #Use get_roster(team_name) for each team
+    teams = []
+    for row in team_rows:
+        roster_names = get_roster(row['name'])
+        teams.append({
+            'id': row['id'],
+            'name': row['name'],
+            'roster': roster_names,
+        })
+
+    return render_template(
+        'league_admin.html',
+        league=league,
+        teams=teams
+    )
 
 @app.route('/change_phase', methods=["GET"])
 def change():
