@@ -157,11 +157,10 @@ def join_team_submit():
         return redirect("/login")
 
     team_name = request.form["team"]
-    username = session.get("username")
+    user = get_current_user()
     db = get_db()
 
-    player = get_user_by_username(username)
-    user_id = player[0]
+    user_id = user["id"]
     cur = db.execute('SELECT id FROM teams where name =?', [team_name])
     team_id = cur.fetchone()[0]
 

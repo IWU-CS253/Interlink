@@ -57,7 +57,7 @@
     <select class="form-select form-select-lg w-25 mb-3" name="league_select" onchange="this.form.submit()">
         <option disabled selected>Leagues</option>
        {% for league in all_leagues %}
-           <option value="{{ league }}" class="dropdown-item" {% if league_selected == league %}selected{% endif %}>{{ league }}</option>
+           <option value="{{ league }}" class="dropdown-item" >{{ league }}</option>
        {% endfor %}
     </select>
 </form>
