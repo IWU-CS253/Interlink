@@ -1,9 +1,23 @@
 {% extends "layout.html" %}
 {% block body %}
 <div class="m-4">
+<!-- Admin button -->
+            <aside>
+                <div>
+                    {% if session.get('logged_in') %}
+                        {% if session.get('role') == 'admin' %}
+                            <a class="btn btn-secondary btn-sm float-end" href="{{ url_for('league_admin', league_id=league['id']) }}" >Admin Page</a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </aside>
+
     <h1>{{ league['league_name'] }}</h1>
+
+
     <div>
         <div>
+
             <p><strong>Sport:</strong> {{ league['sport'] }}</p>
             <p><strong>Max Teams:</strong> {{ league['max_teams'] }}</p>
             <p><strong>Status:</strong>
