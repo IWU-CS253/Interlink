@@ -18,15 +18,25 @@
                 </div>
             </div>
         </form>
-    {% for league in leagues %}
-        <div class="card mb-3 mx-2">
-            <div class="card-body">
-                <h5>{{ league['league_name'] }}</h5>
-                <p>Sport: {{ league['sport'] }}</p>
-                <p>Status: {{ league['status'] }}</p>
-                <a href="{{ url_for('league_page', league_id=league['id']) }}"
-                   class="btn btn-primary">View League Details</a>
+    <div class="container">
+        {% for league in leagues %}
+            <div class="card mb-3 mx-2 w-50">
+                <div class="card-body">
+                    <h5>{{ league['league_name'] }}</h5>
+                    <p>Sport: {{ league['sport'] }}</p>
+                    <p>Status: {{ league['status'] }}</p>
+                    <a href="{{ url_for('league_page', league_id=league['id']) }}"
+                       class="btn btn-primary">View League Details</a>
+                </div>
             </div>
+        {% endfor %}
+        <!-- Google Calendar Card -->
+        <div class="card">
+            <h1 class="m-2">Today's Games</h1>
+            <iframe style="width:100%; height: 500px;"
+                src="https://calendar.google.com/calendar/embed?src=primary&ctz=America/Chicago&mode=AGENDA"
+                style="border: 0">
+            </iframe>
         </div>
-    {% endfor %}
+    </div>
 {% endblock %}

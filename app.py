@@ -2,13 +2,23 @@ import os
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, request, g, redirect, url_for, render_template, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
+
+# Google Calendar imports
+from google_auth_oauthlib.flow import Flow
+from googleapiclient.discovery import build
+from google.auth.transport.requests import Request
 app = Flask(__name__)
+
 
 app.config.update(
     DATABASE=os.path.join(app.root_path, 'interlinkData.db'),
     SECRET_KEY='testkey',  # use a strong secret in dev; env var in prod
 )
 
+# Google Calendar Configuration
+SCOPES = ['https://www.googleapis.com/auth/calendar']
+CLIENT_SECRETS_FILE = "credentials.json"
+REDIRECT_URI = 'http://localhost:3000/oauth2callback'
 
 def connect_db():
     """Connects to the specific database."""
@@ -281,7 +291,6 @@ def submit_score():
     db = get_db()
 
     league_selected = request.args.get('league_selected')
-    print(league_selected)
     teams = []
 
     if request.method == 'POST':
@@ -291,7 +300,6 @@ def submit_score():
         home_score = request.form['home_score']
         away_score = request.form['away_score']
         game_date = request.form['game_date']
-        print(league_selected)
         # Simple validation
         if not home_score.isdigit() or not away_score.isdigit():
             flash('Scores must be numbers')
@@ -426,3 +434,5 @@ def edit_score():
 
     return render_template('edit_score.html', game=game)
 
+if __name__ == '__main__':
+    app.run(port=3000)
