@@ -27,6 +27,14 @@
                 <a
                    class ="btn btn-success">View Match Schedule</a>
             </div>
+        {% endfor %}
+        <!-- Google Calendar Card -->
+        <div class="card">
+            <h1 class="m-2">Today's Games</h1>
+            <iframe style="width:100%; height: 500px;"
+                src="https://calendar.google.com/calendar/embed?src=primary&ctz=America/Chicago&mode=AGENDA"
+                style="border: 0">
+            </iframe>
         </div>
-    {% endfor %}
+    </div>
 {% endblock %}
