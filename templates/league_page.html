@@ -37,9 +37,13 @@
                 <a href="{{ url_for('join_team_form', sport=league['sport'], league_select=league['league_name']) }}"
                 class="btn btn-success" {% if league['status'] !='SignUp' %} hidden {% endif %}>Join a Team in This League</a>
             </div>
-
             <div class="col-md-4">
                 <p><strong>Standings:</strong></p>
+                <div class="mb-2">
+                    <span>Sort by: </span>
+                    <a href="{{ url_for('league_page', league_id=league['id'], sort='wins') }}" class="btn btn-sm btn-primary">Wins</a>
+                    <a href="{{ url_for('league_page', league_id=league['id'], sort='name') }}" class="btn btn-sm btn-primary">Name</a>
+                </div>
                 <div class="mb-2">
                     {% if standings %}
                     <table class="table table-sm">

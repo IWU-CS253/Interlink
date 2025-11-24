@@ -1,4 +1,5 @@
 import os
+import operator
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, request, g, redirect, url_for, render_template, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -363,11 +364,20 @@ def league_page(league_id):
     standings = get_standings(league_id)
     games = get_league_games(league_id)
 
+    # Sort by wins/name
+    sort_by = request.args.get('sort', 'wins')
+
+    if sort_by == 'wins':
+        standings = sorted(standings, key=operator.itemgetter('wins'), reverse=True)
+    elif sort_by == 'name':
+        standings = sorted(standings, key=operator.itemgetter('team_name'))
+
     return render_template('league_page.html',
                            league=league,
                            teams=teams,
                            standings=standings,
-                           games=games)
+                           games=games,
+                           sort_by=sort_by)
 
 
 @app.route('/league/<int:league_id>/admin')
