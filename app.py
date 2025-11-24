@@ -327,16 +327,10 @@ def submit_score():
 
     return render_template('submit_score.html', leagues=leagues, teams=teams, league_selected = league_selected)
 
+# kept this route because submit score would get both flash messages in try/except
 @app.route('/scores')
 def view_scores():
-    db = get_db()
-    cur = db.execute("SELECT games.id, games.game_date, games.home_score, games.away_score, teams.name as home_team,"
-                     " teams2.name as away_team FROM games JOIN teams ON games.home_team_id = "
-                     "teams.id JOIN teams as teams2 ON games.away_team_id = teams2.id ORDER BY games.game_date DESC")
-    games = cur.fetchall()
-
-
-    return render_template('score_view.html', games=games)
+    return redirect(url_for('home_page'))
 
 @app.route('/del_team', methods=['GET','POST'])
 def del_team():
@@ -416,10 +410,13 @@ def league_admin(league_id):
             'roster': roster_names,
         })
 
+    games = get_league_games(league_id)
+
     return render_template(
         'league_admin.html',
         league=league,
-        teams=teams
+        teams=teams,
+        games=games
     )
 
 @app.route('/change_phase', methods=["GET"])
@@ -460,14 +457,14 @@ def edit_score():
             db.execute("UPDATE games SET home_score = ?, away_score = ? WHERE id = ?",[home_score, away_score, game_id])
             db.commit()
             flash('Score updated successfully!')
-            return redirect(url_for('view_scores'))
+            return redirect(url_for('home_page'))
 
     game = db.execute("SELECT id, home_score, away_score, game_date FROM games WHERE id = ?", [game_id])
     game = game.fetchone()
 
     if not game:
         flash('Game not found.')
-        return redirect(url_for('view_scores'))
+        return redirect(url_for('home_page'))
 
     return render_template('edit_score.html', game=game)
 

@@ -3,5 +3,21 @@
 
     <h1>Admin for {{ league["league_name"] }}</h1>
 
+    <h3 class="mt-4">Games</h3>
+        {% if games %}
+        <ul>
+            {% for game in games %}
+            <li>
+                {{ game.home_team }} vs {{ game.away_team }}: {{ game.home_score }} - {{ game.away_score }}
+                ({{ game.game_date }})
+                <a href="{{ url_for('edit_score') }}?game_id={{ game.id }}" class="btn btn-warning btn-sm">Edit Score</a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No games played yet.</p>
+        {% endif %}
+
+
 
 {% endblock %}
