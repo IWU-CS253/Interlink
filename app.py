@@ -361,11 +361,13 @@ def league_page(league_id):
     teams = db.execute('SELECT * FROM teams WHERE league_id = ?', (league_id,)).fetchall()
 
     standings = get_standings(league_id)
+    games = get_league_games(league_id)
 
     return render_template('league_page.html',
                            league=league,
                            teams=teams,
-                           standings=standings)
+                           standings=standings,
+                           games=games)
 
 
 @app.route('/league/<int:league_id>/admin')
@@ -486,6 +488,13 @@ def get_standings(league_id):
         })
 
     return standings
+
+#Helper for league games
+def get_league_games(league_id):
+    db = get_db()
+    cur = db.execute("SELECT games.id, games.game_date, games.home_score, games.away_score, teams.name as home_team, teams2.name as away_team FROM games JOIN teams ON games.home_team_id = teams.id JOIN teams as teams2 ON games.away_team_id = teams2.id WHERE games.league_id = ? ORDER BY games.game_date DESC", [league_id])
+    games = cur.fetchall()
+    return games
 
 if __name__ == '__main__':
     app.run(port=3000)
