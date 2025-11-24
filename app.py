@@ -455,5 +455,33 @@ def edit_score():
 
     return render_template('edit_score.html', game=game)
 
+
+# Helper for standings
+def get_standings(league_id):
+    db = get_db()
+    cur = db.execute('SELECT id, name FROM teams WHERE league_id = ?', [league_id])
+    teams = cur.fetchall()
+
+    standings = []
+    for team in teams:
+        # wins
+        cur = db.execute(
+            'SELECT COUNT(*) FROM games WHERE league_id = ? AND ((home_team_id = ? AND home_score > away_score) OR (away_team_id = ? AND away_score > home_score))',[league_id, team['id'], team['id']])
+        wins = cur.fetchone()[0]
+
+        # losses
+        cur = db.execute(
+            'SELECT COUNT(*) FROM games WHERE league_id = ? AND ((home_team_id = ? AND home_score < away_score) OR (away_team_id = ? AND away_score < home_score))',[league_id, team['id'], team['id']])
+        losses = cur.fetchone()[0]
+
+        standings.append({
+            'team_id': team['id'],
+            'team_name': team['name'],
+            'wins': wins,
+            'losses': losses
+        })
+
+    return standings
+
 if __name__ == '__main__':
     app.run(port=3000)
