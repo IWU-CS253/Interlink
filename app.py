@@ -359,9 +359,13 @@ def league_page(league_id):
         return redirect(url_for('league_view'))
 
     teams = db.execute('SELECT * FROM teams WHERE league_id = ?', (league_id,)).fetchall()
+
+    standings = get_standings(league_id)
+
     return render_template('league_page.html',
                            league=league,
-                           teams=teams)
+                           teams=teams,
+                           standings=standings)
 
 
 @app.route('/league/<int:league_id>/admin')
