@@ -5,9 +5,9 @@ from flask import Flask, request, g, redirect, url_for, render_template, flash, 
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # Google Calendar imports
-from google_auth_oauthlib.flow import Flow
-from googleapiclient.discovery import build
-from google.auth.transport.requests import Request
+# from google_auth_oauthlib.flow import Flow
+# from googleapiclient.discovery import build
+# from google.auth.transport.requests import Request
 app = Flask(__name__)
 
 
@@ -129,6 +129,11 @@ def league_view():
         leagues = [row[0] for row in league_rows]
 
     return render_template('league_view.html', leagues=leagues)
+
+@app.route('/match-schedule/<int:league_id>')
+def match_schedule(league_id):
+    db = get_db()
+    return render_template('match_schedule.html', league_id=league_id)
 
 @app.route('/team-creation')
 def team_creation():
