@@ -30,7 +30,7 @@
   - Ensure bulk team creation form accepts multiple teams
   - Ensure all teams and players are stored correctly
   - Ensure league setup completes without data loss
-- 
+  
 *Elle*
 - **User Story #12: Auto-Generate Schedule**
   - Generate season schedule for leagues that sets up teams to play each team twice
