@@ -26,8 +26,6 @@ def connect_db():
     rv.row_factory = sqlite3.Row
     return rv
 
-
-
 def init_db():
     """Initializes the database."""
     from seed import seed
@@ -454,6 +452,32 @@ def edit_score():
         return redirect(url_for('view_scores'))
 
     return render_template('edit_score.html', game=game)
+
+# Google Calendar Commands
+
+def create_game_event(game):
+    date = str(['game_date'])
+
+    # Puts the date into the expected format for Google Calendar
+    if ' ' in date:
+        date = date.split(' ')[0]
+    elif 'T' in date:
+        date = date.split('T')[0]
+
+    event = {
+        'summary': f"🏆 {game['home_team']} vs {game['away_team']}", # Makes the Title
+        'description': f"League: {game['league_name']}\nSport: {game['sport']}\nScore: {game['home_score']} - {game['away_score']}\n\nHome Team: {game['home_team']}\nAway Team: {game['away_team']}",
+        'start': {
+            'date': date,  # Puts in the date
+            'timeZone': 'America/Chicago'
+        },
+        'end': {
+            'date': date,  # Puts the end date as the same as original date
+            'timeZone': 'America/Chicago'
+        },
+    }
+    return event
+
 
 if __name__ == '__main__':
     app.run(port=3000)
