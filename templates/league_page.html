@@ -25,20 +25,72 @@
                     {{ league['status']|upper }}
                 </span>
             </p>
-            <p><strong>Teams:</strong></p>
-            <ul>
-                {% for team in teams %}
-                <li><a style="color: black" class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover" href="{{ url_for('team_view', team_name=team["name"], league_name=league["league_name"],
-                team_manager=team["team_manager"], sport=league["sport"], league_status = league["status"]) }}">{{ team["name"] }}</a></li>
-                {% endfor %}
-            </ul>
+        <div class="row">
+            <div class="col-md-4">
+                <p><strong>Teams:</strong></p>
+                <ul>
+                    {% for team in teams %}
+                    <li><a style="color: black" class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover" href="{{ url_for('team_view', team_name=team["name"], league_name=league["league_name"],
+                    team_manager=team["team_manager"], sport=league["sport"], league_status = league["status"]) }}">{{ team["name"] }}</a></li>
+                    {% endfor %}
+                </ul>
                 <a href="{{ url_for('join_team_form', sport=league['sport'], league_select=league['league_name']) }}"
                 class="btn btn-success" {% if league['status'] !='SignUp' %} hidden {% endif %}>Join a Team in This League</a>
+            </div>
+            <div class="col-md-4">
+                <p><strong>Standings:</strong></p>
+                <div class="mb-2">
+                    <span>Sort by: </span>
+                    <a href="{{ url_for('league_page', league_id=league['id'], sort='wins') }}" class="btn btn-sm btn-primary">Wins</a>
+                    <a href="{{ url_for('league_page', league_id=league['id'], sort='name') }}" class="btn btn-sm btn-primary">Name</a>
+                </div>
+                <div class="mb-2">
+                    {% if standings %}
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Team</th>
+                                <th>Wins</th>
+                                <th>Losses</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for team in standings %}
+                            <tr>
+                                <td>{{ team['team_name'] }}</td>
+                                <td>{{ team['wins'] }}</td>
+                                <td>{{ team['losses'] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p>No games played yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <p><strong>Recent Games:</strong></p>
+                {% if games %}
+                <ul>
+                    {% for game in games %}
+                    <li>
+                        {{ game.home_team }} vs {{ game.away_team }}: {{ game.home_score }} - {{ game.away_score }}
+                        ({{ game.game_date }})
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>No games played yet.</p>
+                {% endif %}
+            </div>
+
         </div>
-        <form action="/change_phase" method="get">
-            <input type="hidden" name="status" value="{{ league["status"] }}">
-            <button type="submit">change</button>
-        </form>
+            <form action="/change_phase" method="get">
+                <input type="hidden" name="status" value="{{ league["status"] }}">
+                <button type="submit">change</button>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}
