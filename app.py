@@ -167,7 +167,7 @@ def match_schedule(league_id):
     games = db.execute('SELECT ')
     return render_template('match_schedule.html', league_id=league_id)
 
-@app.route('/league/<int: league_id>/generate-schedule', methods=['GET', 'POST'])
+@app.route('/league/<int:league_id>/generate-schedule', methods=['GET', 'POST'])
 def generate_schedule(league_id):
     # admin check
     if not session.get('logged_in'):
@@ -651,7 +651,7 @@ def change():
     db = get_db()
     if league_status=="SignUp":
         db.execute('UPDATE leagues SET status = "Active"')
-    elif league_status=="active":
+    elif league_status=="Active":
         db.execute('UPDATE leagues SET status = "SignUp"')
     db.commit()
     return redirect('/')
