@@ -66,7 +66,7 @@
    <input type="hidden" name="league_hidden" value="{{ league_selected }}">
    <dl>
        <dt>Select Team</dt>
-            <dd><select class="form-select form-select-lg w-25 mb-3" name="team" multiple required>
+            <dd><select style="height: 300px" class="form-select form-select-lg mb-3" name="team" multiple required>
                 {% for team in teams %}
                     <option value="{{ team }}" class="dropdown-item" >{{ team }}</option>
                 {% endfor %}
