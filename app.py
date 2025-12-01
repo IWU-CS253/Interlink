@@ -99,7 +99,6 @@ def get_roster(team_name):
     return roster
 
 
-
 @app.route('/league_creation', methods=["GET", "POST"])
 def league_creation():
     if request.method == "POST":
@@ -128,10 +127,67 @@ def league_view():
 
     return render_template('league_view.html', leagues=leagues)
 
+def month_days(month, year):
+    days_thirty_one = [1, 3, 5, 7, 8, 10, 12]
+    days_thirty = [4, 6, 9, 11]
+    if month in days_thirty_one:
+        return 31
+    elif month in days_thirty:
+        return 30
+
+    # Leap year calculation
+    else:
+        if (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0):
+            return 29
+        return 28
+
+def date(year, month, day, add_days):
+    day += add_days
+
+    # Change to next month
+    while day > month_days(month, year):
+        day -= month_days(month, year)
+        month += 1
+
+        # Change to next year
+        if month > 12:
+            month = 1
+            year += 1
+
+    return day, month, year
+
 @app.route('/match-schedule/<int:league_id>')
 def match_schedule(league_id):
     db = get_db()
+    league = db.execute('SELECT * FROM leagues WHERE id=?', [league_id]).fetchone()
+    if league is None:
+        flash('League does not exist!')
+        return redirect(url_for('home_page'))
+
+    games = db.execute('SELECT ')
     return render_template('match_schedule.html', league_id=league_id)
+
+@app.route('/league/<int: league_id>/generate-schedule', methods=['GET', 'POST'])
+def generate_schedule(league_id):
+    # admin check
+    if not session.get('logged_in'):
+        flash("Please log in to access that page.")
+        return redirect(url_for('login'))
+
+    activeuser = get_current_user()
+    if activeuser is None or activeuser['role'] != "admin":
+        flash("You do not have permission to do that.")
+        return redirect('/')
+
+    db = get_db()
+
+    league = db.execute('SELECT * FROM leagues WHERE id=?', [league_id]).fetchone()
+    teams = db.execute('SELECT id, name')
+    if league is None:
+        flash('League does not exist!')
+        return redirect(url_for('home_page'))
+
+
 
 @app.route('/team-creation')
 def team_creation():
