@@ -260,6 +260,185 @@ class InterlinkTestCase(unittest.TestCase):
 
         assert b'Teams must be different' in rv.data
 
+# JOIN TEAM TESTS
+    def test_join_team_form_loads_with_sport_selection(self):
+       rv = self.app.get('/join_team_form?sport=Basketball')
+       assert b'Select Sport' in rv.data
+       assert b'Basketball' in rv.data
+
+
+    def test_join_team_form_shows_leagues_for_sport(self):
+       with interlink.app.app_context():
+           db = interlink.get_db()
+           db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                      ('Basketball League 1', 'Basketball', 8))
+           db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                      ('Basketball League 2', 'Basketball', 10))
+           db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                      ('Soccer League', 'Soccer', 12))
+           db.commit()
+
+
+       rv = self.app.get('/join_team_form?sport=Basketball')
+       assert b'Basketball League 1' in rv.data
+       assert b'Basketball League 2' in rv.data
+       assert b'Soccer League' not in rv.data
+
+
+    def test_join_team_form_shows_teams_when_league_selected(self):
+       with interlink.app.app_context():
+           db = interlink.get_db()
+           db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                      ('Basketball League', 'Basketball', 8))
+           db.commit()
+
+
+           league_id = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('Basketball League',)).fetchone()[0]
+           db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                      ('Team 1', 'Manager 1', league_id))
+           db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                      ('Team 2', 'Manager 2', league_id))
+           db.commit()
+
+
+       rv = self.app.get('/join_team_form?sport=Basketball&league_select=Basketball League')
+       assert b'Team 1' in rv.data
+       assert b'Team 2' in rv.data
+
+
+    def test_join_team_submit_requires_login(self):
+       rv = self.app.post('/join_team_submit', data=dict(
+           team='Test Team'
+       ), follow_redirects=True)
+       assert b'Please log in to join a team!' in rv.data
+
+
+    def test_join_team_submit_stores_membership(self):
+       # Setup
+       with interlink.app.app_context():
+           db = interlink.get_db()
+           db.execute('INSERT INTO users (username, password_hash, name, email) VALUES (?, ?, ?, ?)',
+                      ('testuser', generate_password_hash('password'), 'Test User', 'test@test.com'))
+           db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                      ('Test League', 'Basketball', 8))
+           db.commit()
+
+
+           league_id = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('Test League',)).fetchone()[0]
+           db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                      ('Test Team', 'Manager', league_id))
+           db.commit()
+
+
+       self.app.post('/login', data=dict(
+           username='testuser',
+           password='password'
+       ))
+
+
+       # Join team
+       self.app.post('/join_team_submit', data=dict(
+           team='Test Team'
+       ), follow_redirects=True)
+
+
+       # Verify
+       with interlink.app.app_context():
+           db = interlink.get_db()
+           user_id = db.execute('SELECT id FROM users WHERE username = ?', ('testuser',)).fetchone()[0]
+           team_id = db.execute('SELECT id FROM teams WHERE name = ?', ('Test Team',)).fetchone()[0]
+
+
+           membership = db.execute(
+               'SELECT * FROM memberships WHERE user_id = ? AND team_id = ?',
+               (user_id, team_id)
+           ).fetchone()
+
+
+           assert membership is not None
+
+
+    def test_join_team_submit_prevents_duplicate_membership(self):
+       # Setup
+       with interlink.app.app_context():
+           db = interlink.get_db()
+           db.execute('INSERT INTO users (username, password_hash, name, email) VALUES (?, ?, ?, ?)',
+                      ('testuser', generate_password_hash('password'), 'Test User', 'test@test.com'))
+           db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                      ('Test League', 'Basketball', 8))
+           db.commit()
+
+
+           league_id = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('Test League',)).fetchone()[0]
+           db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                      ('Test Team', 'Manager', league_id))
+           db.commit()
+
+
+           user_id = db.execute('SELECT id FROM users WHERE username = ?', ('testuser',)).fetchone()[0]
+           team_id = db.execute('SELECT id FROM teams WHERE name = ?', ('Test Team',)).fetchone()[0]
+
+
+           # Add initial membership
+           db.execute('INSERT INTO memberships (user_id, team_id) VALUES (?, ?)', (user_id, team_id))
+           db.commit()
+
+
+       self.app.post('/login', data=dict(
+           username='testuser',
+           password='password'
+       ))
+
+
+       # Try to join again
+       rv = self.app.post('/join_team_submit', data=dict(
+           team='Test Team'
+       ), follow_redirects=True)
+
+
+       assert b'You are already a member of this team!' in rv.data
+
+
+    def test_get_roster_returns_team_members(self):
+       with interlink.app.app_context():
+           db = interlink.get_db()
+           # Create users
+           db.execute('INSERT INTO users (username, password_hash, name, email) VALUES (?, ?, ?, ?)',
+                      ('user1', generate_password_hash('pass'), 'Player One', 'p1@test.com'))
+           db.execute('INSERT INTO users (username, password_hash, name, email) VALUES (?, ?, ?, ?)',
+                      ('user2', generate_password_hash('pass'), 'Player Two', 'p2@test.com'))
+
+
+           # Create league and team
+           db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                      ('Test League', 'Basketball', 8))
+           db.commit()
+
+
+           league_id = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('Test League',)).fetchone()[0]
+           db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                      ('Test Team', 'Manager', league_id))
+           db.commit()
+
+
+           # Add memberships
+           user1_id = db.execute('SELECT id FROM users WHERE username = ?', ('user1',)).fetchone()[0]
+           user2_id = db.execute('SELECT id FROM users WHERE username = ?', ('user2',)).fetchone()[0]
+           team_id = db.execute('SELECT id FROM teams WHERE name = ?', ('Test Team',)).fetchone()[0]
+
+
+           db.execute('INSERT INTO memberships (user_id, team_id) VALUES (?, ?)', (user1_id, team_id))
+           db.execute('INSERT INTO memberships (user_id, team_id) VALUES (?, ?)', (user2_id, team_id))
+           db.commit()
+
+
+           # Test get_roster function
+           roster = interlink.get_roster('Test Team')
+
+
+           assert len(roster) == 2
+           assert 'Player One' in roster
+           assert 'Player Two' in roster
 
 if __name__ == '__main__':
     unittest.main()
