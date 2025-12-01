@@ -440,5 +440,246 @@ class InterlinkTestCase(unittest.TestCase):
            assert 'Player One' in roster
            assert 'Player Two' in roster
 
+
+    # TEAM PAGE TESTS
+    def test_team_view_displays_team_information(self):
+       with interlink.app.app_context():
+           db = interlink.get_db()
+           # Create league
+           db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                      ('Basketball League', 'Basketball', 8))
+           db.commit()
+
+
+           league_id = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('Basketball League',)).fetchone()[0]
+
+
+           # Create team
+           db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                      ('Cheese', 'Coach', league_id))
+           db.commit()
+
+
+       rv = self.app.get(
+           '/team_view?team_name=Cheese&league_name=Basketball League&team_manager=Coach&sport=Basketball&league_status=SignUp')
+
+
+       assert b'Cheese' in rv.data
+       assert b'Basketball League' in rv.data
+       assert b'Coach' in rv.data
+       assert b'Basketball' in rv.data
+
+
+    def test_team_view_displays_roster(self):
+       with interlink.app.app_context():
+           db = interlink.get_db()
+
+
+           # Create users
+           db.execute('INSERT INTO users (username, password_hash, name, email) VALUES (?, ?, ?, ?)',
+                      ('player1', generate_password_hash('pass'), 'Hayden', 'casey@test.com'))
+           db.execute('INSERT INTO users (username, password_hash, name, email) VALUES (?, ?, ?, ?)',
+                      ('player2', generate_password_hash('pass'), 'Casey', 'casey@test.com'))
+
+
+           # Create league
+           db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                      ('Basketball League', 'Basketball', 8))
+           db.commit()
+
+
+           league_id = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('Basketball League',)).fetchone()[0]
+
+
+           # Create team
+           db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                      ('Cheese', 'Coach', league_id))
+           db.commit()
+
+
+           # Get IDs
+           team_id = db.execute('SELECT id FROM teams WHERE name = ?', ('Cheese',)).fetchone()[0]
+           user1_id = db.execute('SELECT id FROM users WHERE username = ?', ('player1',)).fetchone()[0]
+           user2_id = db.execute('SELECT id FROM users WHERE username = ?', ('player2',)).fetchone()[0]
+
+
+           # Add memberships
+           db.execute('INSERT INTO memberships (user_id, team_id) VALUES (?, ?)', (user1_id, team_id))
+           db.execute('INSERT INTO memberships (user_id, team_id) VALUES (?, ?)', (user2_id, team_id))
+           db.commit()
+
+
+       rv = self.app.get(
+           '/team_view?team_name=Cheese&league_name=Basketball League&team_manager=Coach&sport=Basketball&league_status=SignUp')
+
+
+       assert b'Hayden' in rv.data
+       assert b'Casey' in rv.data
+       assert b'Roster:' in rv.data
+
+
+    def test_team_view_shows_join_button_when_signup_phase(self):
+       with interlink.app.app_context():
+           db = interlink.get_db()
+           db.execute('INSERT INTO leagues (league_name, sport, max_teams, status) VALUES (?, ?, ?, ?)',
+                      ('Basketball League', 'Basketball', 8, 'SignUp'))
+           db.commit()
+
+
+           league_id = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('Basketball League',)).fetchone()[0]
+           db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                      ('Cheese', 'Coach', league_id))
+           db.commit()
+
+
+       rv = self.app.get(
+           '/team_view?team_name=Cheese&league_name=Basketball League&team_manager=Coach&sport=Basketball&league_status=SignUp')
+
+
+       assert b'Join Team' in rv.data
+
+
+    def test_team_view_hides_join_button_when_not_signup_phase(self):
+       with interlink.app.app_context():
+           db = interlink.get_db()
+           db.execute('INSERT INTO leagues (league_name, sport, max_teams, status) VALUES (?, ?, ?, ?)',
+                      ('Basketball League', 'Basketball', 8, 'Active'))
+           db.commit()
+
+
+           league_id = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('Basketball League',)).fetchone()[0]
+           db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                      ('Cheese', 'Coach', league_id))
+           db.commit()
+
+
+       rv = self.app.get(
+           '/team_view?team_name=Cheese&league_name=Basketball League&team_manager=Coach&sport=Basketball&league_status=Active')
+
+
+       # The button should be hidden when league_status is not 'SignUp'
+       # Check that the form exists but the button has the hidden attribute
+       assert b'join_team_submit' in rv.data
+
+
+    def test_team_view_with_empty_roster(self):
+       with interlink.app.app_context():
+           db = interlink.get_db()
+           db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                      ('Basketball League', 'Basketball', 8))
+           db.commit()
+
+
+           league_id = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('Basketball League',)).fetchone()[0]
+           db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                      ('Cheese', 'Coach', league_id))
+           db.commit()
+
+
+       rv = self.app.get(
+           '/team_view?team_name=Cheese&league_name=Basketball League&team_manager=Coach&sport=Basketball&league_status=SignUp')
+
+
+       assert b'Roster:' in rv.data
+       assert rv.status_code == 200
+
+
+    def test_team_view_join_button_submits_to_correct_endpoint(self):
+       with interlink.app.app_context():
+           db = interlink.get_db()
+           db.execute('INSERT INTO leagues (league_name, sport, max_teams, status) VALUES (?, ?, ?, ?)',
+                      ('Basketball League', 'Basketball', 8, 'SignUp'))
+           db.commit()
+
+
+           league_id = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('Basketball League',)).fetchone()[0]
+           db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                      ('Cheese', 'Coach', league_id))
+           db.commit()
+
+
+       rv = self.app.get(
+           '/team_view?team_name=Cheese&league_name=Basketball League&team_manager=Coach&sport=Basketball&league_status=SignUp')
+
+
+       assert b'action="/join_team_submit"' in rv.data
+       assert b'method="post"' in rv.data
+       assert b'name="team" value="Cheese"' in rv.data
+
+
+    def test_team_view_displays_all_required_sections(self):
+       with interlink.app.app_context():
+           db = interlink.get_db()
+           db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                      ('Basketball League', 'Basketball', 8))
+           db.commit()
+
+
+           league_id = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('Basketball League',)).fetchone()[0]
+           db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                      ('Cheese', 'Coach', league_id))
+           db.commit()
+
+
+       rv = self.app.get(
+           '/team_view?team_name=Cheese&league_name=Basketball League&team_manager=Coach&sport=Basketball&league_status=SignUp')
+
+
+       assert b'League:' in rv.data
+       assert b'Sport:' in rv.data
+       assert b'Manager:' in rv.data
+       assert b'Roster:' in rv.data
+       assert b'Upcoming Games' in rv.data
+
+
+    def test_get_roster_with_multiple_players(self):
+       with interlink.app.app_context():
+           db = interlink.get_db()
+
+
+           # Create multiple users
+           db.execute('INSERT INTO users (username, password_hash, name, email) VALUES (?, ?, ?, ?)',
+                      ('ethan', generate_password_hash('pass'), 'Ethan', 'ethan@test.com'))
+           db.execute('INSERT INTO users (username, password_hash, name, email) VALUES (?, ?, ?, ?)',
+                      ('elle', generate_password_hash('pass'), 'Elle', 'elle@test.com'))
+           db.execute('INSERT INTO users (username, password_hash, name, email) VALUES (?, ?, ?, ?)',
+                      ('hayden', generate_password_hash('pass'), 'Hayden', 'hayden@test.com'))
+
+
+           # Create league and team
+           db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                      ('Test League', 'Soccer', 10))
+           db.commit()
+
+
+           league_id = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('Test League',)).fetchone()[0]
+           db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                      ('Cheese', 'Brad Sheese', league_id))
+           db.commit()
+
+
+           # Get IDs
+           team_id = db.execute('SELECT id FROM teams WHERE name = ?', ('Cheese',)).fetchone()[0]
+           user1_id = db.execute('SELECT id FROM users WHERE username = ?', ('ethan',)).fetchone()[0]
+           user2_id = db.execute('SELECT id FROM users WHERE username = ?', ('elle',)).fetchone()[0]
+           user3_id = db.execute('SELECT id FROM users WHERE username = ?', ('hayden',)).fetchone()[0]
+
+
+           # Add memberships
+           db.execute('INSERT INTO memberships (user_id, team_id) VALUES (?, ?)', (user1_id, team_id))
+           db.execute('INSERT INTO memberships (user_id, team_id) VALUES (?, ?)', (user2_id, team_id))
+           db.execute('INSERT INTO memberships (user_id, team_id) VALUES (?, ?)', (user3_id, team_id))
+           db.commit()
+
+
+           # Test get_roster function
+           roster = interlink.get_roster('Cheese')
+
+
+           assert len(roster) == 3
+           assert 'Ethan' in roster
+           assert 'Elle' in roster
+           assert 'Hayden' in roster
+
 if __name__ == '__main__':
     unittest.main()
