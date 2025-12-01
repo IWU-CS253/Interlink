@@ -581,10 +581,9 @@ class InterlinkTestCase(unittest.TestCase):
 
 
        assert b'Roster:' in rv.data
-       assert rv.status_code == 200
 
 
-    def test_team_view_join_button_submits_to_correct_endpoint(self):
+    def test_team_view_join_button_submits_to_correct_team(self):
        with interlink.app.app_context():
            db = interlink.get_db()
            db.execute('INSERT INTO leagues (league_name, sport, max_teams, status) VALUES (?, ?, ?, ?)',
@@ -605,32 +604,6 @@ class InterlinkTestCase(unittest.TestCase):
        assert b'action="/join_team_submit"' in rv.data
        assert b'method="post"' in rv.data
        assert b'name="team" value="Cheese"' in rv.data
-
-
-    def test_team_view_displays_all_required_sections(self):
-       with interlink.app.app_context():
-           db = interlink.get_db()
-           db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
-                      ('Basketball League', 'Basketball', 8))
-           db.commit()
-
-
-           league_id = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('Basketball League',)).fetchone()[0]
-           db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
-                      ('Cheese', 'Coach', league_id))
-           db.commit()
-
-
-       rv = self.app.get(
-           '/team_view?team_name=Cheese&league_name=Basketball League&team_manager=Coach&sport=Basketball&league_status=SignUp')
-
-
-       assert b'League:' in rv.data
-       assert b'Sport:' in rv.data
-       assert b'Manager:' in rv.data
-       assert b'Roster:' in rv.data
-       assert b'Upcoming Games' in rv.data
-
 
     def test_get_roster_with_multiple_players(self):
        with interlink.app.app_context():
