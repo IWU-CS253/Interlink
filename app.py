@@ -675,7 +675,7 @@ def league_admin(league_id):
     games = db.execute(""" SELECT g.id, g.game_date, g.home_score, g.away_score, t1.name AS home_team, t2.name AS away_team
                        FROM games g JOIN teams t1 ON g.home_team_id = t1.id JOIN teams t2 ON g.away_team_id = t2.id
                        WHERE g.league_id = ?
-                       ORDER BY g.game_date DESC
+                       ORDER BY g.game_date ASC
                        """, (league_id,)).fetchall()
 
     return render_template(
@@ -849,7 +849,7 @@ def get_league_games(league_id):
                        JOIN teams ON games.home_team_id = teams.id 
                        JOIN teams as teams2 ON games.away_team_id = teams2.id 
                        WHERE games.league_id = ? AND games.home_score IS NOT NULL AND games.away_score IS NOT NULL
-                       ORDER BY games.game_date DESC""", [league_id])
+                       ORDER BY games.game_date ASC""", [league_id])
     games = cur.fetchall()
     return games
 
