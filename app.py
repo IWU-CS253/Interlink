@@ -1,13 +1,14 @@
 import os
 import operator
+import random
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, request, g, redirect, url_for, render_template, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # Google Calendar imports
-# from google_auth_oauthlib.flow import Flow
-# from googleapiclient.discovery import build
-# from google.auth.transport.requests import Request
+from google_auth_oauthlib.flow import Flow
+from googleapiclient.discovery import build
+from google.auth.transport.requests import Request
 app = Flask(__name__)
 
 
@@ -154,7 +155,7 @@ def date(year, month, day, add_days):
             month = 1
             year += 1
 
-    return day, month, year
+    return year, month, day
 
 @app.route('/match-schedule/<int:league_id>')
 def match_schedule(league_id):
@@ -164,8 +165,39 @@ def match_schedule(league_id):
         flash('League does not exist!')
         return redirect(url_for('home_page'))
 
-    games = db.execute('SELECT ')
-    return render_template('match_schedule.html', league_id=league_id)
+    games = db.execute('''
+                       SELECT games.id, games.game_date, games.home_score, games.away_score, games.home_team_id,
+                       games.away_team_id FROM games WHERE games.league_id = ? ORDER BY games.game_date ASC
+                       ''', [league_id]).fetchall()
+
+    team_games = []
+    for game in games:
+        home_team = db.execute('SELECT name FROM teams WHERE id=?', [game['home_team_id']]).fetchone()
+        away_team = db.execute('SELECT name FROM teams WHERE id=?', [game['away_team_id']]).fetchone()
+
+        game_dict = {
+            'id': game['id'],
+            'game_date': game['game_date'],
+            'home_score': game['home_score'],
+            'away_score': game['away_score'],
+            'home_team_id': game['home_team_id'],
+            'away_team_id': game['away_team_id'],
+            'home_team': home_team['name'],
+            'away_team': away_team['name']
+        }
+        team_games.append(game_dict)
+
+    finished_games = []
+    future_games = []
+
+    for game in team_games:
+        if game['home_score'] is None or game['away_score'] is None:
+            future_games.append(game)
+        else:
+            finished_games.append(game)
+
+    return render_template('match_schedule.html', league=league, future_games=future_games,
+                           finished_games=finished_games)
 
 @app.route('/league/<int:league_id>/generate-schedule', methods=['GET', 'POST'])
 def generate_schedule(league_id):
@@ -182,13 +214,75 @@ def generate_schedule(league_id):
     db = get_db()
 
     league = db.execute('SELECT * FROM leagues WHERE id=?', [league_id]).fetchone()
-    teams = db.execute('SELECT id, name')
+    teams = db.execute('SELECT id, name FROM teams WHERE league_id=?', [league_id]).fetchall()
     if league is None:
         flash('League does not exist!')
         return redirect(url_for('home_page'))
 
+    if request.method == 'POST':
+
+        starting_date = request.form['start_date']
+        games_week = int(request.form.get('games_per_week'))
+        clear_unplayed = request.form.get('clear_existing')
+
+        if clear_unplayed == 'on':
+            db.execute('DELETE FROM games WHERE league_id=? AND home_score IS NULL AND away_score IS NULL', [league_id])
+            db.commit()
+            flash('Games successfully cleared!')
 
 
+        pairings = []
+        for i in range(len(teams)):
+            for j in range(i + 1, len(teams)):
+                pairings.append((teams[i]['id'], teams[j]['id']))
+                pairings.append((teams[j]['id'], teams[i]['id']))
+        random.shuffle(pairings)
+
+        start_date = starting_date.split('-')
+        year = int(start_date[0])
+        month = int(start_date[1])
+        day = int(start_date[2])
+        current_game_count = 0
+        for home_id, away_id in pairings:
+            if month < 10:
+                month_str = '0' + str(month)
+            else:
+                month_str = str(month)
+
+            if day < 10:
+                day_str = '0' + str(day)
+            else:
+                day_str = str(day)
+
+            game_date = str(year) + '-' + month_str + '-' + day_str + ' 19:00:00'
+
+            db.execute('INSERT INTO games (league_id, home_team_id, away_team_id, game_date, home_score, away_score) '
+                       'VALUES (?, ?, ?, ?, NULL, NULL)',
+                [league_id, home_id, away_id, game_date])
+
+            current_game_count += 1
+            if current_game_count >= games_week:
+                result = date(year, month, day, 7)
+                year = result[0]
+                month = result[1]
+                day = result[2]
+                current_game_count = 0
+            else:
+                result = date(year, month, day, 3)
+                year = result[0]
+                month = result[1]
+                day = result[2]
+
+        db.commit()
+        flash('Games generated!')
+        return redirect(url_for('match_schedule', league_id=league_id))
+
+    row = db.execute('SELECT COUNT(*) as count FROM games WHERE league_id=? AND home_score IS NULL',
+                     [league_id]).fetchone()
+    existing_games = row['count']
+
+    return render_template('generate_schedule.html', league=league, teams=teams, num_teams=len(teams),
+                           existing_games=existing_games)
 @app.route('/team-creation')
 def team_creation():
     db = get_db()
