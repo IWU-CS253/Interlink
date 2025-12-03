@@ -1,7 +1,11 @@
 {% extends "layout.html" %}
 {% block body %}
     {# UNIT TESTED #}
-        <dl>
+        <div class="alert alert-info m-4" role="alert">
+        <strong>Note:</strong> Ensure the match schedule has been generated before submitting scores.
+        </div>
+
+        <dl class="m-4">
             <dt>League:</dt>
             <dd>
             <form action="/submit_score" method="get">
@@ -17,22 +21,12 @@
                 {% if league_selected %}
                 <input type="hidden" name="league_selected" value="{{ league_selected }}">
                 {% endif %}
-            <dt>Home Team:</dt>
+            <dt>Select Game:</dt>
             <dd>
-                <select name="home_team_id" required>
-                    <option value="">Select Home Team</option>
-                    {% for team in teams %}
-                    <option value="{{ team.id }}">{{ team.name }}</option>
-                    {% endfor %}
-                </select>
-            </dd>
-
-            <dt>Away Team:</dt>
-            <dd>
-                <select name="away_team_id" required>
-                    <option value="">Select Away Team</option>
-                    {% for team in teams %}
-                    <option value="{{ team.id }}">{{ team.name }}</option>
+                <select name="game_id" required>
+                    <option value="">Select Game</option>
+                    {% for game in unfinished_games %}
+                    <option value="{{ game.id }}">{{ game.game_date }} - {{ game.home_team }} vs {{ game.away_team }}</option>
                     {% endfor %}
                 </select>
             </dd>
@@ -42,9 +36,6 @@
 
             <dt>Away Score:</dt>
             <dd><input type="number" name="away_score" max="200" min="0" required></dd>
-
-            <dt>Game Date:</dt>
-            <dd><input type="date" name="game_date" required></dd>
 
             <dd>
                 <input type="submit" value="Submit Score" class="btn btn-primary">
