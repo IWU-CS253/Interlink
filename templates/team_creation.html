@@ -6,8 +6,8 @@
       <form action="/create_team" method="post">
         <input type="hidden" name="id">
         <dl>
-          <dt>Team Name:
-          <dd><input type="text" size="30" name="name">
+          <dt>Team Name (Max Length 3-35 Characters):
+          <dd><input type="text" size="30" name="name" maxlength="35" minlength="3" pattern="^\S.*" required>
           <dt>League:
          <dd><select name="league">
                 {% for league in leagues %}
@@ -15,7 +15,7 @@
                 {% endfor %}
               </select>
           <dt> Manager:
-          <dd><input type="text" size="30" name="manager">
+          <dd><input type="text" size="30" name="manager" maxlength="35" pattern="^\S.*">
           <dd><input type="submit" value="Update" class="btn btn-primary">
         </dl>
       </form>
