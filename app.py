@@ -3,11 +3,15 @@ import operator
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, request, g, redirect, url_for, render_template, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
+import json
 
-# Google Calendar imports
-# from google_auth_oauthlib.flow import Flow
-# from googleapiclient.discovery import build
-# from google.auth.transport.requests import Request
+try:
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    GOOGLE_CALENDAR_AVAILABLE = True
+except ImportError:
+    GOOGLE_CALENDAR_AVAILABLE = False
+
 app = Flask(__name__)
 
 
@@ -18,9 +22,8 @@ app.config.update(
 
 # Google Calendar Configuration
 SCOPES = ['https://www.googleapis.com/auth/calendar']
-CLIENT_SECRETS_FILE = "credentials.json"
-REDIRECT_URI = 'http://localhost:3000/oauth2callback'
-
+SERVICE_ACCOUNT_FILE = 'interlink-478922-f6de685de9d5.json'
+PUBLIC_CALENDAR_ID = '9fd94e2aa60aa8bbf719f5a47040a77c201c7a1571b950cf4f3109a9150cc447@group.calendar.google.com'
 def connect_db():
     """Connects to the specific database."""
     rv = sqlite3.connect(app.config['DATABASE'])
@@ -72,7 +75,14 @@ def home_page():
         cur = db.execute("SELECT id, league_name, sport, max_teams, status from leagues")
         leagues = cur.fetchall()
 
-    return render_template('homepage.html', leagues=leagues, filter=filter)
+    if session.get('logged_in') and GOOGLE_CALENDAR_AVAILABLE:
+        success, message = sync_games_to_calendar()
+        if success:
+            # Set a flag so we know calendar is synced
+            session['calendar_connected'] = True
+            calendar_connected = True
+
+    return render_template('homepage.html', leagues=leagues, filter=filter, calendar_connected=calendar_connected)
 
 @app.route('/team_view', methods=["GET"])
 def team_view():
@@ -446,7 +456,6 @@ def submit_score():
             teams = cur.fetchall()
 
     leagues = db.execute("SELECT id, league_name FROM leagues").fetchall()
-
     return render_template('submit_score.html', leagues=leagues, teams=teams, league_selected = league_selected)
 
 # kept this route because submit score would get both flash messages in try/except
@@ -693,31 +702,6 @@ def edit_score():
         return redirect(url_for('home_page'))
 
     return render_template('edit_score.html', game=game)
-
-# Google Calendar Commands
-
-def create_game_event(game):
-    date = str(['game_date'])
-
-    # Puts the date into the expected format for Google Calendar
-    if ' ' in date:
-        date = date.split(' ')[0]
-    elif 'T' in date:
-        date = date.split('T')[0]
-
-    event = {
-        'summary': f"🏆 {game['home_team']} vs {game['away_team']}", # Makes the Title
-        'description': f"League: {game['league_name']}\nSport: {game['sport']}\nScore: {game['home_score']} - {game['away_score']}\n\nHome Team: {game['home_team']}\nAway Team: {game['away_team']}",
-        'start': {
-            'date': date,  # Puts in the date
-            'timeZone': 'America/Chicago'
-        },
-        'end': {
-            'date': date,  # Puts the end date as the same as original date
-            'timeZone': 'America/Chicago'
-        },
-    }
-    return event
 
 
 # Helper for standings
