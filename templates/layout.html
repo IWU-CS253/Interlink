@@ -29,6 +29,9 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('submit_score') }}">Submit Score</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('whole_league_creation') }}">Whole League Creation</a>
+                </li>
             </ul>
             <div class="ms-auto navbar navbar-expand-lg navbar-light bg-light px-3">
                 {% if session.get('logged_in') %}
