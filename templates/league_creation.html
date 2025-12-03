@@ -3,21 +3,22 @@
     {# UNIT TESTED #}
     <form action="/league_creation" method="post">
         <dl>
-            <dt>League Name:</dt>
-            <dd><input type="text" size="30" name="league_name" required></dd>
+            <dt>League Name (Max Length 2-35 Characters) :</dt>
+            <dd><input type="text" size="30" maxlength="35" minlength="2" pattern="^\S.*" name="league_name" required></dd>
             <dt>Sport:</dt>
-            <dd><input name="sport" list="sports" placeholder="Sport" required>
-                <datalist id="sports">
-                    <option value="Soccer"></option>
-                    <option value="Football"></option>
-                    <option value="Basketball"></option>
-                    <option value="Volleyball"></option>
-                    <option value="Water Polo"></option>
-                    <option value="Badminton"></option>
-                </datalist>
+            <dd>
+                <select name="sport" required>
+                    <option value="" disabled selected>Select a sport</option>
+                    <option value="Soccer">Soccer</option>
+                    <option value="Football">Football</option>
+                    <option value="Basketball">Basketball</option>
+                    <option value="Volleyball">Volleyball</option>
+                    <option value="Water Polo">Water Polo</option>
+                    <option value="Badminton">Badminton</option>
+                </select>
             </dd>
             <dt>Maximum Teams:</dt>
-            <dd><input type="number" size="30" name="max_teams" required></dd>
+            <dd><input type="number" size="30" min="3" max="32"  name="max_teams" required></dd>
             <dd><input type="submit" value="Create"></dd>
         </dl>
     </form>
