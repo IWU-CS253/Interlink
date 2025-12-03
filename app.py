@@ -1,6 +1,7 @@
 import os
 import operator
 import random
+from datetime import datetime, timedelta
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, request, g, redirect, url_for, render_template, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -840,6 +841,10 @@ def sync_games_to_calendar():
 
     db = get_db()
 
+    today = datetime.now().date()
+    next_week = today + timedelta(days=30)
+    today_str = today.strftime('%Y-%m-%d')
+    next_week_str = next_week.strftime('%Y-%m-%d')
     # Get all games from database
     games = db.execute("""
                        SELECT games.id,
@@ -854,8 +859,9 @@ def sync_games_to_calendar():
                                 JOIN teams home_team ON games.home_team_id = home_team.id
                                 JOIN teams away_team ON games.away_team_id = away_team.id
                                 JOIN leagues ON games.league_id = leagues.id
+                           WHERE games.game_date >= ? AND games.game_date <= ?
                        ORDER BY games.game_date
-                       """).fetchall()
+                       """,[today_str, next_week_str]).fetchall()
 
     # Get the set of synced game IDs from session (initialize if not exists)
     if 'synced_game_ids' not in session:
@@ -918,13 +924,7 @@ def get_standings(league_id):
 #Helper for league games
 def get_league_games(league_id):
     db = get_db()
-    cur = db.execute("""SELECT games.id, games.game_date, games.home_score, games.away_score, 
-                       teams.name as home_team, teams2.name as away_team 
-                       FROM games 
-                       JOIN teams ON games.home_team_id = teams.id 
-                       JOIN teams as teams2 ON games.away_team_id = teams2.id 
-                       WHERE games.league_id = ? AND games.home_score IS NOT NULL AND games.away_score IS NOT NULL
-                       ORDER BY games.game_date DESC""", [league_id])
+    cur = db.execute("SELECT games.id, games.game_date, games.home_score, games.away_score, teams.name as home_team, teams2.name as away_team FROM games JOIN teams ON games.home_team_id = teams.id JOIN teams as teams2 ON games.away_team_id = teams2.id WHERE games.league_id = ? ORDER BY games.game_date DESC", [league_id])
     games = cur.fetchall()
     return games
 
