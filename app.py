@@ -1,5 +1,6 @@
 import os
 import operator
+import random
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, request, g, redirect, url_for, render_template, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -26,8 +27,6 @@ def connect_db():
     rv = sqlite3.connect(app.config['DATABASE'])
     rv.row_factory = sqlite3.Row
     return rv
-
-
 
 def init_db():
     """Initializes the database."""
@@ -83,9 +82,28 @@ def team_view():
     team_manager= request.args.get("team_manager")
     sport= request.args.get("sport")
     league_status = request.args.get('league_status')
+    team_id = request.args.get('team_id')
     roster = get_roster(team_name)
 
-    return render_template('team_view.html', team_name=team_name, league_name=league_name, team_manager=team_manager, sport=sport, league_status=league_status, roster=roster)
+    db = get_db()
+    cur = db.execute("""SELECT games.id,
+                               games.game_date,
+                               games.home_score,
+                               games.away_score,
+                               teams.name  as home_team,
+                               teams2.name as away_team
+                                FROM games
+                                 JOIN teams ON games.home_team_id = teams.id
+                                 JOIN teams as teams2 ON games.away_team_id = teams2.id
+                                WHERE (teams.id = ? OR teams2.id=?)
+                                  AND games.home_score IS NULL
+                                  AND games.away_score IS NULL
+                                ORDER BY games.game_date ASC""", [team_id, team_id])
+    games = cur.fetchall()
+
+    return render_template('team_view.html', games=games, team_name=team_name, league_name=league_name,
+                           team_id=team_id, team_manager=team_manager, sport=sport,
+                           league_status=league_status, roster=roster)
 
 
 # Helper method to get a teams roster with only their team name
@@ -101,7 +119,6 @@ def get_roster(team_name):
     return roster
 
 
-
 @app.route('/league_creation', methods=["GET", "POST"])
 def league_creation():
     if request.method == "POST":
@@ -114,22 +131,161 @@ def league_creation():
 
     return render_template("league_creation.html")
 
-@app.route('/league_view', methods=["GET", "POST"])
-def league_view():
-    filter = request.args.get('filter', None)
+def month_days(month, year):
+    days_thirty_one = [1, 3, 5, 7, 8, 10, 12]
+    days_thirty = [4, 6, 9, 11]
+    if month in days_thirty_one:
+        return 31
+    elif month in days_thirty:
+        return 30
+
+    # Leap year calculation
+    else:
+        if (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0):
+            return 29
+        return 28
+
+def date(year, month, day, add_days):
+    day += add_days
+
+    # Change to next month
+    while day > month_days(month, year):
+        day -= month_days(month, year)
+        month += 1
+
+        # Change to next year
+        if month > 12:
+            month = 1
+            year += 1
+
+    return year, month, day
+
+@app.route('/match-schedule/<int:league_id>')
+def match_schedule(league_id):
+    db = get_db()
+    league = db.execute('SELECT * FROM leagues WHERE id=?', [league_id]).fetchone()
+    if league is None:
+        flash('League does not exist!')
+        return redirect(url_for('home_page'))
+
+    games = db.execute('''
+                       SELECT games.id, games.game_date, games.home_score, games.away_score, games.home_team_id,
+                       games.away_team_id FROM games WHERE games.league_id = ? ORDER BY games.game_date ASC
+                       ''', [league_id]).fetchall()
+
+    team_games = []
+    for game in games:
+        home_team = db.execute('SELECT name FROM teams WHERE id=?', [game['home_team_id']]).fetchone()
+        away_team = db.execute('SELECT name FROM teams WHERE id=?', [game['away_team_id']]).fetchone()
+
+        game_dict = {
+            'id': game['id'],
+            'game_date': game['game_date'],
+            'home_score': game['home_score'],
+            'away_score': game['away_score'],
+            'home_team_id': game['home_team_id'],
+            'away_team_id': game['away_team_id'],
+            'home_team': home_team['name'],
+            'away_team': away_team['name']
+        }
+        team_games.append(game_dict)
+
+    finished_games = []
+    future_games = []
+
+    for game in team_games:
+        if game['home_score'] is None or game['away_score'] is None:
+            future_games.append(game)
+        else:
+            finished_games.append(game)
+
+    return render_template('match_schedule.html', league=league, future_games=future_games,
+                           finished_games=finished_games)
+
+@app.route('/league/<int:league_id>/generate-schedule', methods=['GET', 'POST'])
+def generate_schedule(league_id):
+    # admin check
+    if not session.get('logged_in'):
+        flash("Please log in to access that page.")
+        return redirect(url_for('login'))
+
+    activeuser = get_current_user()
+    if activeuser is None or activeuser['role'] != "admin":
+        flash("You do not have permission to do that.")
+        return redirect('/')
+
     db = get_db()
 
-    if filter:
-        cur = db.execute('SELECT league_name, sport, max_teams FROM leagues where sport=? ORDER BY league_name', (filter,))
-        league_rows = cur.fetchall()
-        leagues = [row[0] for row in league_rows]
-    else:
-        cur = db.execute("SELECT league_name, sport, max_teams from leagues ORDER BY league_name")
-        league_rows = cur.fetchall()
-        leagues = [row[0] for row in league_rows]
+    league = db.execute('SELECT * FROM leagues WHERE id=?', [league_id]).fetchone()
+    teams = db.execute('SELECT id, name FROM teams WHERE league_id=?', [league_id]).fetchall()
+    if league is None:
+        flash('League does not exist!')
+        return redirect(url_for('home_page'))
 
-    return render_template('league_view.html', leagues=leagues)
+    if request.method == 'POST':
 
+        starting_date = request.form['start_date']
+        games_week = int(request.form.get('games_per_week'))
+        clear_unplayed = request.form.get('clear_existing')
+
+        if clear_unplayed == 'on':
+            db.execute('DELETE FROM games WHERE league_id=? AND home_score IS NULL AND away_score IS NULL', [league_id])
+            db.commit()
+            flash('Games successfully cleared!')
+
+
+        pairings = []
+        for i in range(len(teams)):
+            for j in range(i + 1, len(teams)):
+                pairings.append((teams[i]['id'], teams[j]['id']))
+                pairings.append((teams[j]['id'], teams[i]['id']))
+        random.shuffle(pairings)
+
+        start_date = starting_date.split('-')
+        year = int(start_date[0])
+        month = int(start_date[1])
+        day = int(start_date[2])
+        current_game_count = 0
+        for home_id, away_id in pairings:
+            if month < 10:
+                month_str = '0' + str(month)
+            else:
+                month_str = str(month)
+
+            if day < 10:
+                day_str = '0' + str(day)
+            else:
+                day_str = str(day)
+
+            game_date = str(year) + '-' + month_str + '-' + day_str + ' 19:00:00'
+
+            db.execute('INSERT INTO games (league_id, home_team_id, away_team_id, game_date, home_score, away_score) '
+                       'VALUES (?, ?, ?, ?, NULL, NULL)',
+                [league_id, home_id, away_id, game_date])
+
+            current_game_count += 1
+            if current_game_count >= games_week:
+                result = date(year, month, day, 7)
+                year = result[0]
+                month = result[1]
+                day = result[2]
+                current_game_count = 0
+            else:
+                result = date(year, month, day, 3)
+                year = result[0]
+                month = result[1]
+                day = result[2]
+
+        db.commit()
+        flash('Games generated!')
+        return redirect(url_for('match_schedule', league_id=league_id))
+
+    row = db.execute('SELECT COUNT(*) as count FROM games WHERE league_id=? AND home_score IS NULL',
+                     [league_id]).fetchone()
+    existing_games = row['count']
+
+    return render_template('generate_schedule.html', league=league, teams=teams, num_teams=len(teams),
+                           existing_games=existing_games)
 @app.route('/team-creation')
 def team_creation():
     db = get_db()
@@ -382,39 +538,38 @@ def submit_score():
     db = get_db()
 
     league_selected = request.args.get('league_selected')
-    teams = []
+    unfinished_games = []
 
     if request.method == 'POST':
         league_selected = request.form['league_selected']
-        home_team_id = request.form['home_team_id']
-        away_team_id = request.form['away_team_id']
+        game_id = request.form['game_id']
         home_score = request.form['home_score']
         away_score = request.form['away_score']
-        game_date = request.form['game_date']
         # Simple validation
         if not home_score.isdigit() or not away_score.isdigit():
             flash('Scores must be numbers')
         elif int(home_score) < 0 or int(away_score) < 0:
             flash('Scores cannot be negative')
-        elif home_team_id == away_team_id:
-            flash('Teams must be different')
         else:
             try:
                 db.execute(
-                    "INSERT into games (league_id, home_team_id, away_team_id, home_score, away_score, game_date) VALUES (?, ?, ?, ?, ?, ?)",
-                    [league_selected, home_team_id, away_team_id, home_score, away_score, game_date])
+                    'UPDATE games SET home_score=?, away_score=? WHERE id=?',
+                    [home_score, away_score, game_id])
                 db.commit()
                 flash('Score submitted successfully!')
                 return redirect(url_for('view_scores'))
             except:
                 flash('Error Saving Score')
     if league_selected:
-            cur = db.execute("SELECT name, id FROM teams WHERE league_id = ?", [league_selected])
-            teams = cur.fetchall()
+            cur = db.execute('''SELECT games.id, games.game_date, home.name as home_team, away.name as away_team
+                           FROM games JOIN teams home ON games.home_team_id = home.id JOIN teams away ON games.away_team_id = away.id
+                           WHERE games.league_id = ? AND games.home_score IS NULL AND games.away_score IS NULL
+                           ORDER BY games.game_date ASC ''', [league_selected])
+            unfinished_games = cur.fetchall()
 
     leagues = db.execute("SELECT id, league_name FROM leagues").fetchall()
 
-    return render_template('submit_score.html', leagues=leagues, teams=teams, league_selected = league_selected)
+    return render_template('submit_score.html', leagues=leagues, unfinished_games=unfinished_games, league_selected = league_selected)
 
 # kept this route because submit score would get both flash messages in try/except
 @app.route('/scores')
@@ -549,7 +704,7 @@ def league_admin(league_id):
     games = db.execute(""" SELECT g.id, g.game_date, g.home_score, g.away_score, t1.name AS home_team, t2.name AS away_team
                        FROM games g JOIN teams t1 ON g.home_team_id = t1.id JOIN teams t2 ON g.away_team_id = t2.id
                        WHERE g.league_id = ?
-                       ORDER BY g.game_date DESC
+                       ORDER BY g.game_date ASC
                        """, (league_id,)).fetchall()
 
     return render_template(
@@ -618,7 +773,7 @@ def change():
     db = get_db()
     if league_status=="SignUp":
         db.execute('UPDATE leagues SET status = "Active"')
-    elif league_status=="active":
+    elif league_status=="Active":
         db.execute('UPDATE leagues SET status = "SignUp"')
     db.commit()
     return redirect('/')
@@ -661,6 +816,31 @@ def edit_score():
 
     return render_template('edit_score.html', game=game)
 
+# Google Calendar Commands
+
+def create_game_event(game):
+    date = str(['game_date'])
+
+    # Puts the date into the expected format for Google Calendar
+    if ' ' in date:
+        date = date.split(' ')[0]
+    elif 'T' in date:
+        date = date.split('T')[0]
+
+    event = {
+        'summary': f"🏆 {game['home_team']} vs {game['away_team']}", # Makes the Title
+        'description': f"League: {game['league_name']}\nSport: {game['sport']}\nScore: {game['home_score']} - {game['away_score']}\n\nHome Team: {game['home_team']}\nAway Team: {game['away_team']}",
+        'start': {
+            'date': date,  # Puts in the date
+            'timeZone': 'America/Chicago'
+        },
+        'end': {
+            'date': date,  # Puts the end date as the same as original date
+            'timeZone': 'America/Chicago'
+        },
+    }
+    return event
+
 
 # Helper for standings
 def get_standings(league_id):
@@ -692,7 +872,13 @@ def get_standings(league_id):
 #Helper for league games
 def get_league_games(league_id):
     db = get_db()
-    cur = db.execute("SELECT games.id, games.game_date, games.home_score, games.away_score, teams.name as home_team, teams2.name as away_team FROM games JOIN teams ON games.home_team_id = teams.id JOIN teams as teams2 ON games.away_team_id = teams2.id WHERE games.league_id = ? ORDER BY games.game_date DESC", [league_id])
+    cur = db.execute("""SELECT games.id, games.game_date, games.home_score, games.away_score, 
+                       teams.name as home_team, teams2.name as away_team 
+                       FROM games 
+                       JOIN teams ON games.home_team_id = teams.id 
+                       JOIN teams as teams2 ON games.away_team_id = teams2.id 
+                       WHERE games.league_id = ? AND games.home_score IS NOT NULL AND games.away_score IS NOT NULL
+                       ORDER BY games.game_date ASC""", [league_id])
     games = cur.fetchall()
     return games
 

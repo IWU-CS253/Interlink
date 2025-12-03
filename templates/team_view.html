@@ -23,7 +23,13 @@
             {% endfor %}
         </div>
         <div class="mt-3">
-            <strong>Upcoming Games</strong>
+            <strong>Upcoming Games:</strong>
+            {% for game in games %}
+                <div>
+                    {{ game.home_team }} vs {{ game.away_team }}: {{ game.home_score }} - {{ game.away_score }}
+                    ({{ game.game_date }})
+                </div>
+            {% endfor %}
         </div>
     </div>
 </div>

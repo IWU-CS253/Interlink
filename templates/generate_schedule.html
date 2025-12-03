@@ -1,0 +1,43 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="container mt-4">
+    <h1>Generate Schedule for League</h1>
+    <div class="alert alert-info">
+        <p>{{ num_teams }} teams in league</p>
+        <p>{{ num_teams * (num_teams - 1) }} total games will be created</p>
+        <p>Each team plays every other team twice</p>
+    </div>
+    <form method="POST">
+        <div class="mb-3">
+            <label>Start Date</label>
+            <input type="date" name="start_date" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label>Games Per Week</label>
+            <select name="games_per_week" class="form-select">
+                <option value="1">1 game per week</option>
+                <option value="2" selected>2 games per week</option>
+                <option value="3">3 games per week</option>
+                <option value="4">4 games per week</option>
+            </select>
+        </div>
+        {% if existing_games > 0 %}
+        <div class="mb-3">
+            <input type="checkbox" name="clear_existing" id="clear_existing">
+            <label for="clear_existing">Delete unplayed games before generating new games!</label>
+        </div>
+        {% endif %}
+        <button type="submit" class="btn btn-primary">Generate Schedule</button>
+        <a href="{{ url_for('league_admin', league_id=league['id']) }}"
+           class="btn btn-secondary">Cancel</a>
+    </form>
+    <div class="mt-4">
+        <h4>Teams:</h4>
+        <ul>
+            {% for team in teams %}
+            <li>{{ team['name'] }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

@@ -1,6 +1,35 @@
 {% extends "layout.html" %}
 {% block body %}
+<h1 class="m-2">Match Schedule - {{ league['league_name'] }}</h1>
+<div class="m-2">
+    <a href="{{ url_for('home_page')}}" class="btn btn-secondary">Back to League</a>
+    {% if session.get('role') == 'admin' %}
+    <a href="{{ url_for('generate_schedule', league_id=league['id']) }}" class="btn btn-success">Generate New Schedule</a>
+    {% endif %}
 
+    {% if future_games|length > 0 %}
+    <h2 class="m-2">Scheduled Games</h2>
+    {% for game in future_games %}
+    <div class="card mb-3 mx-2">
+        <div class="card-body">
+            <h5>{{ game['home_team'] }} vs {{ game['away_team'] }}</h5>
+            <p>Date: {{ game['game_date'][:16] }}</p>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
 
-
+    {% if finished_games|length > 0 %}
+    <h2 class="m-2">Completed Games</h2>
+    {% for game in finished_games %}
+    <div class="card mb-3 mx-2">
+        <div class="card-body">
+            <h5>{{ game['home_team'] }} vs {{ game['away_team'] }}</h5>
+            <p>Date: {{ game['game_date'][:16] }}</p>
+            <p><strong>Score: {{ game['home_score'] }} - {{ game['away_score'] }}</strong></p>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
 {% endblock %}
