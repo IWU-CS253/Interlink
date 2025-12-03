@@ -72,7 +72,7 @@ def home_page():
         cur = db.execute("SELECT id, league_name, sport, max_teams, status from leagues")
         leagues = cur.fetchall()
 
-    return render_template('homepage.html', leagues=leagues)
+    return render_template('homepage.html', leagues=leagues, filter=filter)
 
 @app.route('/team_view', methods=["GET"])
 def team_view():

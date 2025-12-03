@@ -5,12 +5,12 @@
         <div class="m-2" style="display: flex; align-items: center; gap: 10px;">
             <select class="form-select form-select-lg w-25" name="filter">
                 <option disabled selected>Sport</option>
-                <option value="Volleyball">Volleyball</option>
-                <option value="Football">Football</option>
-                <option value="Basketball">Basketball</option>
-                <option value="Soccer">Soccer</option>
-                <option value="Water Polo">Water Polo</option>
-                <option value="Badminton">Badminton</option>
+                <option value="Volleyball" {% if filter == "Volleyball" %}selected{% endif %}>Volleyball</option>
+                <option value="Football" {% if filter == "Football" %}selected{% endif %}>Football</option>
+                <option value="Basketball" {% if filter == "Basketball" %}selected{% endif %}>Basketball</option>
+                <option value="Soccer" {% if filter == "Soccer" %}selected{% endif %}>Soccer</option>
+                <option value="Water Polo" {% if filter == "Water Polo" %}selected{% endif %}>Water Polo</option>
+                <option value="Badminton" {% if filter == "Badminton" %}selected{% endif %}>Badminton</option>
             </select>
             <button type="submit" class="btn btn-secondary">Filter</button>
             <a href="{{ url_for('home_page') }}" class="btn btn-secondary">Reset</a>

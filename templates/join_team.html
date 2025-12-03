@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% block body %}
     <script>
+        // Auto submits the sport selected to show leagues
         document.addEventListener('DOMContentLoaded', function() {
             const league_find = document.getElementById('league_find');
             const Volleyball = document.getElementById('Volleyball');
@@ -54,10 +55,10 @@
 <form  id="team_find" method="get" action="{{ url_for('join_team_form') }}" >
     <input type="hidden" name="sport" value="{{ sport_selected }}">
     <dt class="mt-3">Select League</dt>
-    <select class="form-select form-select-lg w-25 mb-3" name="league_select" onchange="this.form.submit()">
+    <select style="width: 35%" class="form-select form-select-lg mb-3" name="league_select" onchange="this.form.submit()">
         <option disabled selected>Leagues</option>
        {% for league in all_leagues %}
-           <option value="{{ league }}" class="dropdown-item" >{{ league }}</option>
+           <option value="{{ league }}" class="dropdown-item" {% if league_selected == league %}selected{% endif %}>{{ league }}</option>
        {% endfor %}
     </select>
 </form>
@@ -66,7 +67,8 @@
    <input type="hidden" name="league_hidden" value="{{ league_selected }}">
    <dl>
        <dt>Select Team</dt>
-            <dd><select style="height: 300px" class="form-select form-select-lg mb-3" name="team" multiple required>
+            <dd><select style="width: 35%" class="form-select form-select-lg mb-3"  name="team" required>
+                <option disabled selected>Teams</option>
                 {% for team in teams %}
                     <option value="{{ team }}" class="dropdown-item" >{{ team }}</option>
                 {% endfor %}
