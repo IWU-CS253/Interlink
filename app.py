@@ -82,9 +82,28 @@ def team_view():
     team_manager= request.args.get("team_manager")
     sport= request.args.get("sport")
     league_status = request.args.get('league_status')
+    team_id = request.args.get('team_id')
     roster = get_roster(team_name)
 
-    return render_template('team_view.html', team_name=team_name, league_name=league_name, team_manager=team_manager, sport=sport, league_status=league_status, roster=roster)
+    db = get_db()
+    cur = db.execute("""SELECT games.id,
+                               games.game_date,
+                               games.home_score,
+                               games.away_score,
+                               teams.name  as home_team,
+                               teams2.name as away_team
+                                FROM games
+                                 JOIN teams ON games.home_team_id = teams.id
+                                 JOIN teams as teams2 ON games.away_team_id = teams2.id
+                                WHERE (teams.id = ? OR teams2.id=?)
+                                  AND games.home_score IS NULL
+                                  AND games.away_score IS NULL
+                                ORDER BY games.game_date ASC""", [team_id, team_id])
+    games = cur.fetchall()
+
+    return render_template('team_view.html', games=games, team_name=team_name, league_name=league_name,
+                           team_id=team_id, team_manager=team_manager, sport=sport,
+                           league_status=league_status, roster=roster)
 
 
 # Helper method to get a teams roster with only their team name
@@ -111,22 +130,6 @@ def league_creation():
         return redirect(url_for('home_page'))
 
     return render_template("league_creation.html")
-
-@app.route('/league_view', methods=["GET", "POST"])
-def league_view():
-    filter = request.args.get('filter', None)
-    db = get_db()
-
-    if filter:
-        cur = db.execute('SELECT league_name, sport, max_teams FROM leagues where sport=? ORDER BY league_name', (filter,))
-        league_rows = cur.fetchall()
-        leagues = [row[0] for row in league_rows]
-    else:
-        cur = db.execute("SELECT league_name, sport, max_teams from leagues ORDER BY league_name")
-        league_rows = cur.fetchall()
-        leagues = [row[0] for row in league_rows]
-
-    return render_template('league_view.html', leagues=leagues)
 
 def month_days(month, year):
     days_thirty_one = [1, 3, 5, 7, 8, 10, 12]

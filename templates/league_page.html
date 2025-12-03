@@ -31,7 +31,7 @@
                 <ul>
                     {% for team in teams %}
                     <li><a style="color: black" class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover" href="{{ url_for('team_view', team_name=team["name"], league_name=league["league_name"],
-                    team_manager=team["team_manager"], sport=league["sport"], league_status = league["status"]) }}">{{ team["name"] }}</a></li>
+                    team_manager=team["team_manager"], sport=league["sport"], league_status = league["status"], team_id = team['id']) }}">{{ team["name"] }}</a></li>
                     {% endfor %}
                 </ul>
                 <a href="{{ url_for('join_team_form', sport=league['sport'], league_select=league['league_name']) }}"
