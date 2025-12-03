@@ -66,6 +66,7 @@ def close_db(error):
 
 @app.route('/', methods=["GET", "POST"])
 def home_page():
+    calendar_connected = False
     filter = request.args.get('filter', None)
     db = get_db()
 
@@ -77,7 +78,7 @@ def home_page():
         cur = db.execute("SELECT id, league_name, sport, max_teams, status from leagues")
         leagues = cur.fetchall()
 
-    if session.get('logged_in') and GOOGLE_CALENDAR_AVAILABLE:
+    if GOOGLE_CALENDAR_AVAILABLE:
         success, message = sync_games_to_calendar()
         if success:
             # Set a flag so we know calendar is synced
