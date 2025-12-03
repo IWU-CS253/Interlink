@@ -509,39 +509,38 @@ def submit_score():
     db = get_db()
 
     league_selected = request.args.get('league_selected')
-    teams = []
+    unfinished_games = []
 
     if request.method == 'POST':
         league_selected = request.form['league_selected']
-        home_team_id = request.form['home_team_id']
-        away_team_id = request.form['away_team_id']
+        game_id = request.form['game_id']
         home_score = request.form['home_score']
         away_score = request.form['away_score']
-        game_date = request.form['game_date']
         # Simple validation
         if not home_score.isdigit() or not away_score.isdigit():
             flash('Scores must be numbers')
         elif int(home_score) < 0 or int(away_score) < 0:
             flash('Scores cannot be negative')
-        elif home_team_id == away_team_id:
-            flash('Teams must be different')
         else:
             try:
                 db.execute(
-                    "INSERT into games (league_id, home_team_id, away_team_id, home_score, away_score, game_date) VALUES (?, ?, ?, ?, ?, ?)",
-                    [league_selected, home_team_id, away_team_id, home_score, away_score, game_date])
+                    'UPDATE games SET home_score=?, away_score=? WHERE id=?',
+                    [home_score, away_score, game_id])
                 db.commit()
                 flash('Score submitted successfully!')
                 return redirect(url_for('view_scores'))
             except:
                 flash('Error Saving Score')
     if league_selected:
-            cur = db.execute("SELECT name, id FROM teams WHERE league_id = ?", [league_selected])
-            teams = cur.fetchall()
+            cur = db.execute('''SELECT games.id, games.game_date, home.name as home_team, away.name as away_team
+                           FROM games JOIN teams home ON games.home_team_id = home.id JOIN teams away ON games.away_team_id = away.id
+                           WHERE games.league_id = ? AND games.home_score IS NULL AND games.away_score IS NULL
+                           ORDER BY games.game_date ASC ''', [league_selected])
+            unfinished_games = cur.fetchall()
 
     leagues = db.execute("SELECT id, league_name FROM leagues").fetchall()
 
-    return render_template('submit_score.html', leagues=leagues, teams=teams, league_selected = league_selected)
+    return render_template('submit_score.html', leagues=leagues, unfinished_games=unfinished_games, league_selected = league_selected)
 
 # kept this route because submit score would get both flash messages in try/except
 @app.route('/scores')
@@ -844,7 +843,13 @@ def get_standings(league_id):
 #Helper for league games
 def get_league_games(league_id):
     db = get_db()
-    cur = db.execute("SELECT games.id, games.game_date, games.home_score, games.away_score, teams.name as home_team, teams2.name as away_team FROM games JOIN teams ON games.home_team_id = teams.id JOIN teams as teams2 ON games.away_team_id = teams2.id WHERE games.league_id = ? ORDER BY games.game_date DESC", [league_id])
+    cur = db.execute("""SELECT games.id, games.game_date, games.home_score, games.away_score, 
+                       teams.name as home_team, teams2.name as away_team 
+                       FROM games 
+                       JOIN teams ON games.home_team_id = teams.id 
+                       JOIN teams as teams2 ON games.away_team_id = teams2.id 
+                       WHERE games.league_id = ? AND games.home_score IS NOT NULL AND games.away_score IS NOT NULL
+                       ORDER BY games.game_date DESC""", [league_id])
     games = cur.fetchall()
     return games
 
