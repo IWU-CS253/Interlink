@@ -416,9 +416,35 @@ def create_team():
     else:
         db = get_db()
 
-        league = db.execute("SELECT id FROM leagues WHERE league_name=?", [request.form["league"]])
+        team_name = (request.form.get("name") or "").strip()
+
+        if not team_name:
+            flash("Team name is required.")
+            return redirect(url_for('team_creation'))
+
+        league = db.execute("SELECT id, max_teams FROM leagues WHERE league_name=?", [request.form["league"]])
         league_row = league.fetchone()
-        league_id = league_row[0]
+        league_id = league_row["id"]
+        max_teams = league_row["max_teams"]
+
+        #don't allow more teams then max teams for league and don't allow
+        #duplicate team names
+        teamCount = db.execute(
+            "SELECT COUNT(*) FROM teams WHERE league_id = ?",
+            (league_id,)
+        ).fetchone()[0]
+
+        if max_teams is not None and teamCount >= max_teams:
+            flash("This league is already at its max number of teams.")
+            return redirect(url_for('team_creation'))
+        existing_team = db.execute(
+            "SELECT 1 FROM teams WHERE league_id = ? AND name = ?",
+            (league_id, team_name)
+        ).fetchone()
+
+        if existing_team:
+            flash("A team with that name already exists in this league.")
+            return redirect(url_for('team_creation'))
 
         db.execute("INSERT INTO teams (name, team_manager, league_id) VALUES (?,?, ?)",
                    [request.form["name"], request.form["manager"], league_id])
@@ -855,6 +881,88 @@ def get_league_games(league_id):
                        ORDER BY games.game_date ASC""", [league_id])
     games = cur.fetchall()
     return games
+
+@app.route('/whole_league_creation', methods=["GET", "POST"])
+def whole_league_creation():
+        if not session.get("logged_in"):
+            flash("Please log in to create a league and teams.")
+            return redirect(url_for('login'))
+        if request.method == "GET":
+            #Firstly only show the league form
+            return render_template("whole_league_creation.html", step=1)
+
+        #Get the step, step 1 is just making the league and step 2 is making the teams
+        step = request.form.get('step', '1')
+        if step == '1':
+            league_name = request.form.get('league_name')
+            sport = request.form.get('sport')
+            maxteams = request.form.get('max_teams')
+            error = None
+
+            if not league_name:
+                error = "League name required"
+            elif not sport:
+                error = "Sport is required"
+            else:
+                if int(maxteams) <= 1:
+                    error = "Max teams must be 2 or more"
+
+            if error:
+                flash(error, "error")
+                return render_template("whole_league_creation.html",
+                                       step =1,
+                                       league_name=league_name,
+                                       sport=sport,
+                                       max_teams=maxteams)
+
+            #If no error, move onto step 2
+            return render_template("whole_league_creation.html",
+                                   step=2,
+                                   league_name=league_name,
+                                   sport=sport,
+                                   max_teams=int(maxteams))
+        elif step == '2':
+            league_name = request.form.get('league_name')
+            sport = request.form.get('sport')
+            maxteams = int(request.form.get('max_teams'))
+
+            rawTeamNames = request.form.getlist('team_names[]')
+            separatedTeamNames = [t.strip() for t in rawTeamNames if t.strip()]
+
+            if len(separatedTeamNames) > maxteams:
+                flash(f"You added {len(separatedTeamNames)} teams but max is {maxteams}.", "error")
+                return render_template(
+                    "whole_league_creation.html",
+                    step=2,
+                    league_name=league_name,
+                    sport=sport,
+                    max_teams=maxteams,
+                    team_names=rawTeamNames
+                )
+            db = get_db()
+
+            # Insert league (column is max_teams per your other routes)
+            cur = db.execute(
+                "INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)",
+                (league_name, sport, maxteams)
+            )
+            league_id = cur.lastrowid
+
+            #Team manager defaults to current user
+            current_user = get_current_user()
+            default_manager = current_user['username']
+
+            for name in separatedTeamNames:
+                db.execute(
+                    "INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)",
+                    (name, default_manager, league_id)
+                )
+
+            db.commit()
+
+            flash("League and teams created successfully.")
+            return redirect(url_for('home_page'))
+
 
 if __name__ == '__main__':
     app.run(port=3000)
