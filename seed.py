@@ -33,7 +33,7 @@ def seed():
             INSERT INTO leagues (league_name, sport, max_teams, admin, status)
             VALUES (?, ?, ?, ?, ?)
             """,
-            ('NBA G League', 'Basketball', 32, admin_id, 'Active')
+            ('NBA G League', 'Basketball', 32, admin_id, 'active')
         )
 
         league_row = db.execute(

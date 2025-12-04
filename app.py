@@ -801,16 +801,17 @@ def remove_player(league_id):
     return redirect(url_for('league_admin', league_id=league_id))
 
 
-@app.route('/change_phase', methods=["GET"])
-def change():
-    league_status=request.args.get('status')
+@app.route('/change_phase', methods=["POST"])
+def change_league_status():
+    league_status = request.form['status']
+    league_id = request.form['league_id']
     db = get_db()
-    if league_status=="SignUp":
-        db.execute('UPDATE leagues SET status = "Active"')
-    elif league_status=="Active":
-        db.execute('UPDATE leagues SET status = "SignUp"')
+    if league_status=="signup":
+        db.execute('UPDATE leagues SET status = "active" WHERE id=?',[league_id])
+    elif league_status=="active":
+        db.execute('UPDATE leagues SET status = "signup" WHERE id=?',[league_id])
     db.commit()
-    return redirect('/')
+    return redirect(url_for('league_admin', league_id=league_id))
   
 @app.route('/edit_score', methods=['GET', 'POST'])
 def edit_score():
