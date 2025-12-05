@@ -92,22 +92,22 @@ def seed():
             (league_id,)
         ).fetchall()
 
-        if len(team_rows) == 2:
-            home_team_id = team_rows[0]['id']
-            away_team_id = team_rows[1]['id']
-            db.execute(
-                """
-                INSERT INTO games (
-                    league_id,
-                    home_team_id,
-                    away_team_id,
-                    home_score,
-                    away_score,
-                    game_date
-                ) VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (league_id, home_team_id, away_team_id, 110, 102, today)
-            )
+        # if len(team_rows) == 2:
+        #     home_team_id = team_rows[0]['id']
+        #     away_team_id = team_rows[1]['id']
+        #     db.execute(
+        #         """
+        #         INSERT INTO games (
+        #             league_id,
+        #             home_team_id,
+        #             away_team_id,
+        #             home_score,
+        #             away_score,
+        #             game_date
+        #         ) VALUES (?, ?, ?, ?, ?, ?)
+        #         """,
+        #         (league_id, home_team_id, away_team_id, 110, 102, today)
+        #     )
 
         db.commit()
         print("Database seeded with NBA G League and teams.")
