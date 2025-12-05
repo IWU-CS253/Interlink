@@ -5,14 +5,21 @@
     <p class="text-muted">
         Manage rosters and view games for this league.
     </p>
-    <div class=".container">
-        <div class="row">
-            <div class="col-6">
-                <a class="btn btn-secondary btn-sm mb-3"
-                   href="{{ url_for('league_page', league_id=league['id']) }}">
-                    ← Back to League Page
-                </a>
-            </div>
+    <div class="d-flex">
+        <div class="me-1">
+            <a class="btn btn-secondary btn-sm mb-3"
+               href="{{ url_for('league_page', league_id=league['id']) }}">
+                ← Back to League Page
+            </a>
+        </div>
+        <div>
+            <form method="post"
+            action="{{ url_for('delete_league', league_id=league['id']) }}"
+            onsubmit="return confirm('Are you sure you want to delete this league?');">
+                <button type="submit" class="btn btn-sm btn-danger">
+                Delete League
+                </button>
+            </form>
         </div>
     </div>
     <!-- Games played in this league -->
@@ -54,7 +61,7 @@
             </form>
         </div>
     </div>
-    <div style="height: 600px;" class="overflow-auto">
+    <div style="max-height: 600px;" class="overflow-auto">
     <!-- Teams and rosters -->
     {% for team in teams %}
         <div class="card mb-3">
