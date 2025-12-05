@@ -3,7 +3,7 @@ CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role TEXT,
+    role TEXT DEFAULT 'user',  -- global role: 'admin', 'user', etc.
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     name TEXT NOT NULL,
     email TEXT not null,
@@ -17,9 +17,11 @@ CREATE TABLE leagues (
     sport TEXT,
     max_teams INTEGER NOT NULL,
     admin INTEGER,
+    league_admin INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     status TEXT not null default 'signup',
-    FOREIGN KEY (admin) REFERENCES users(id)
+    FOREIGN KEY (admin) REFERENCES users(id),
+    FOREIGN KEY (league_admin) REFERENCES users(id)
 );
 
 -- TEAMS
@@ -28,7 +30,9 @@ CREATE TABLE teams (
     name TEXT NOT NULL,
     league_id INTEGER,
     team_manager INTEGER,
+    admin INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (admin) REFERENCES users(id),
     FOREIGN KEY (league_id) REFERENCES leagues(id),
     FOREIGN KEY (team_manager) REFERENCES users(id),
     UNIQUE (league_id, name)  -- prevent duplicate team names per league
@@ -57,7 +61,6 @@ CREATE TABLE memberships (
     user_id INTEGER NOT NULL,
     team_id INTEGER NOT NULL,
     league_id INTERGER NOT NULL,
-    role TEXT DEFAULT 'player',
     joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, team_id),
     FOREIGN KEY (user_id) REFERENCES users(id),

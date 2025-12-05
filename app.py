@@ -118,8 +118,34 @@ def user_page():
         flash('Please log in or specify a username.')
         return redirect(url_for('home_page'))
 
-    user = db.execute("SELECT username, name, email FROM users WHERE username=?", (username,)).fetchone()
-    return render_template('user_page.html', username=username, user=user)
+    user = db.execute("SELECT id, username, name, email FROM users WHERE username=?", (username,)).fetchone()
+
+    user_id = user['id']
+
+    teams = db.execute("SELECT teams.id, teams.name, leagues.id AS league_id, leagues.league_name, leagues.sport FROM "
+                       "memberships JOIN teams ON memberships.team_id=teams.id JOIN leagues ON teams.league_id=leagues.id "
+                       "WHERE memberships.user_id=? ORDER BY leagues.league_name", [user_id]).fetchall()
+
+    games_in_league = {}
+    for team in teams:
+        league_identifier = f"{team['league_name']} ({team['sport']})"
+
+        if league_identifier not in games_in_league:
+            games_in_league[league_identifier] = {'league_id': team['league_id'], 'league_name': team['league_name'],
+                'sport': team['sport'], 'games': []}
+
+        games = db.execute("SELECT games.id, games.game_date, games.home_score, games.away_score, home_teams.name AS home_team, "
+                         "away_teams.name AS away_team, home_teams.id AS home_team_id, away_teams.id AS away_team_id "
+                         "FROM games JOIN teams as home_teams ON games.home_team_id=home_teams.id JOIN teams AS away_teams "
+                         "ON games.away_team_id=away_teams.id WHERE games.league_id=? AND (home_teams.id=? OR away_teams.id=?)"
+                         "ORDER BY games.game_date ASC", [team['league_id'], team['id'], team['id']]).fetchall()
+
+        for game in games:
+            game_tracker = dict(game)
+            if not any(g['id'] == game_tracker['id'] for g in games_in_league[league_identifier]['games']):
+                games_in_league[league_identifier]['games'].append(game_tracker)
+
+    return render_template('user_page.html', username=username, user=user, teams=teams, games_in_league=games_in_league)
 @app.route('/team_view', methods=["GET"])
 def team_view():
     team_name= request.args.get("team_name")
