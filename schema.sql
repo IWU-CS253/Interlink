@@ -6,7 +6,8 @@ CREATE TABLE users (
     role TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     name TEXT NOT NULL,
-    email TEXT not null
+    email TEXT not null,
+    email_verified DEFAULT FALSE
 );
 
 -- LEAGUES
@@ -75,3 +76,13 @@ CREATE TABLE calendar_synced_games (
 );
 
 CREATE INDEX idx_calendar_synced_games_game_id ON calendar_synced_games(game_id);
+
+CREATE TABLE pending_registrations(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    name TEXT,
+    password_hash TEXT NOT NULL,
+    verification_token TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
