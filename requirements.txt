@@ -6,4 +6,5 @@ google-auth-oauthlib
 google-api-core
 google-auth
 googleapis-common-protos
+flask_limiter
 pytest
