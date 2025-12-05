@@ -1,24 +1,22 @@
 {% extends "layout.html" %}
 {% block body %}
-    {# UNIT TESTED #}
-<div>
-    <div>
-      <form action="/create_team" method="post">
-        <input type="hidden" name="id">
-        <dl>
-          <dt>Team Name (Max Length 3-35 Characters):
-          <dd><input type="text" size="30" name="name" maxlength="35" minlength="3" pattern="^\S.*" required>
-          <dt>League:
-         <dd><select name="league">
-                {% for league in leagues %}
-                    <option value="{{ league }}">{{ league }}</option>
-                {% endfor %}
-              </select>
-          <dt> Manager:
-          <dd><input type="text" size="30" name="manager" maxlength="35" pattern="^\S.*">
-          <dd><input type="submit" value="Update" class="btn btn-primary">
-        </dl>
-      </form>
-    </div>
+{# UNIT TESTED #}
+<div class="m-3">
+  <form action="/create_team" method="post">
+    <input type="hidden" name="id">
+    <dl>
+      <dt>Team Name (Max Length 3-35 Characters):
+      <dd><input type="text" size="30" name="name" maxlength="35" minlength="3" pattern="^\S.*" required>
+      <dt>League:
+     <dd><select name="league">
+            {% for league in leagues %}
+                <option value="{{ league }}">{{ league }}</option>
+            {% endfor %}
+          </select>
+      <dt> Manager:
+      <dd><input type="text" size="30" name="manager" maxlength="35" pattern="^\S.*">
+      <dd><input type="submit" value="Create" class="btn btn-secondary">
+    </dl>
+  </form>
 </div>
 {% endblock %}
