@@ -17,6 +17,7 @@ except ImportError:
     GOOGLE_CALENDAR_AVAILABLE = False
 
 app = Flask(__name__)
+# Creates flask_limiter extension
 limiter = Limiter(
     get_remote_address,
     app=app,
@@ -70,9 +71,10 @@ def close_db(error):
     if hasattr(g, 'sqlite_db'):
         g.sqlite_db.close()
 
+# Makes flask_limiter errors a flash message
 @app.errorhandler(RateLimitExceeded)
 def handle_rate_limit_exceeded(e):
-    flash(f'Rate limit exceeded: {e.description}', 'error')
+    flash(f'Rate limit exceeded', 'error')
     return redirect(url_for('home_page'))
 @app.route('/', methods=["GET", "POST"])
 def home_page():
@@ -147,6 +149,7 @@ def get_roster(team_name):
 
 
 @app.route('/league_creation', methods=["GET", "POST"])
+# Sets a limit for creating leagues to 5 per hour
 @limiter.limit("5 per hour", key_func=lambda:f"create_league:{get_remote_address()}")
 def league_creation():
     if request.method == "POST":
@@ -509,6 +512,7 @@ def admin_add_player(league_id):
     return redirect(url_for('league_admin', league_id=league_id))
 
 @app.route('/create_team', methods=["POST"])
+# Creates a limit on team creations per hour
 @limiter.limit("5 per hour", key_func=lambda:f"create_team:{get_remote_address()}")
 def create_team():
     if not session.get("logged_in"):
