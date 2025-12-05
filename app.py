@@ -23,7 +23,10 @@ app.config.update(
 
 # Google Calendar Configuration
 SCOPES = ['https://www.googleapis.com/auth/calendar']
-SERVICE_ACCOUNT_FILE = 'interlink-478922-f6de685de9d5.json'
+try:
+    SERVICE_ACCOUNT_FILE = 'interlink-478922-f6de685de9d5.json'
+except FileNotFoundError:
+    pass
 PUBLIC_CALENDAR_ID = '9fd94e2aa60aa8bbf719f5a47040a77c201c7a1571b950cf4f3109a9150cc447@group.calendar.google.com'
 def connect_db():
     """Connects to the specific database."""
@@ -139,6 +142,42 @@ def league_creation():
         return redirect(url_for('home_page'))
 
     return render_template("league_creation.html")
+
+
+@app.route('/league/<int:league_id>/admin/delete_league', methods=["POST"])
+def delete_league(league_id):
+    # admin check
+    if not session.get('logged_in'):
+        flash('Please log in to access that page.')
+        return redirect(url_for('login'))
+
+    activeuser = get_current_user()
+    if activeuser is None or activeuser['role'] != "admin":
+        flash("You do not have permission to do that.")
+        return redirect('/')
+
+    db = get_db()
+    # dummy check to make sure league exists and get status
+    league = db.execute(
+        "SELECT id, status FROM leagues WHERE id = ?",
+        (league_id,)
+    ).fetchone()
+    if league is None:
+        flash("League not found.")
+        return redirect(url_for('home_page'))
+
+    # Only let leagues be deleted while league is in SignUp phase
+    if league['status'] != "signup":
+        flash("Leagues can only be deleted while the league is in SignUp mode.")
+        return redirect(url_for('league_admin', league_id=league_id))
+
+    # Delete all memberships for that league
+    # db.execute("DELETE FROM memberships WHERE league_id = ?", (league_id,))
+    # And the league itself
+    db.execute("DELETE FROM leagues WHERE id = ?", (league_id,))
+    db.commit()
+    flash(f'League has been deleted.')
+    return redirect(url_for('home_page'))
 
 def month_days(month, year):
     days_thirty_one = [1, 3, 5, 7, 8, 10, 12]
@@ -333,14 +372,14 @@ def join_team_form():
     league_selected = request.args.get('league_select', None)
     db = get_db()
     all_leagues = []
-    cur = db.execute('SELECT league_name FROM leagues WHERE sport=?',[sport_selected])
+    cur = db.execute('SELECT league_name FROM leagues WHERE sport=? and status != "active"',[sport_selected])
     for row in cur.fetchall():
         all_leagues.append(row[0])
     teams = []
 
     #Checks if a league has been selected
     if league_selected:
-        selected_id_row = db.execute('SELECT id FROM leagues WHERE league_name=?', [league_selected]).fetchone()
+        selected_id_row = db.execute("SELECT id FROM leagues WHERE league_name=?", [league_selected]).fetchone()
 
         # Checks if the leagues row exists
         if selected_id_row:
@@ -362,8 +401,9 @@ def join_team_submit():
     db = get_db()
 
     user_id = user["id"]
-    cur = db.execute('SELECT id FROM teams where name =?', [team_name])
+    cur = db.execute('SELECT id, status FROM teams where name =?', [team_name])
     team_id = cur.fetchone()[0]
+
 
     #Checks that the user is not already a member of the team
     existing = db.execute(
@@ -486,9 +526,11 @@ def create_team():
         flash("Team created successfully")
         return redirect("/")
 
+
 @app.route('/login', methods=['GET','POST'])
 def login():
     error = None
+    username=""
     #Try To log in
     if request.method == 'POST':
         username = (request.form.get('username') or '').strip()
@@ -506,7 +548,7 @@ def login():
             session['role'] = user['role']
             flash('You were logged in')
             return redirect('/')
-    return render_template('login.html', error=error)
+    return render_template('login.html', error=error, username=username)
 
 @app.route('/logout')
 def logout():
@@ -524,6 +566,12 @@ def get_user_by_username(username):
 @app.route('/signup', methods=["GET","POST"])
 def signup():
     error = None
+    form_info = {
+        'username' : "",
+        'name': "",
+        'email': "",
+    }
+
     if request.method == 'POST':
         username = (request.form.get('username') or '').strip()
         name = (request.form.get('name') or '')
@@ -531,6 +579,11 @@ def signup():
         password = request.form.get('password') or ''
         confirm = request.form.get('confirm') or ''
 
+        form_info = {
+            'username': username,
+            'name': name,
+            'email': email,
+        }
 
         #Simple validation
         if not username or not password:
@@ -560,7 +613,7 @@ def signup():
                 session['username'] = username
                 flash('Account created—welcome!')
                 return redirect("/")
-    return render_template('signup.html', error=error)
+    return render_template('signup.html', error=error, form_info=form_info)
 
 
 @app.route('/submit_score', methods=['GET', 'POST'])
