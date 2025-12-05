@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, request, g, redirect, url_for, render_template, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
-import calendar
 
 try:
     from google.oauth2 import service_account
@@ -26,7 +25,6 @@ app.config.update(
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 SERVICE_ACCOUNT_FILE = 'interlink-478922-f6de685de9d5.json'
 PUBLIC_CALENDAR_ID = '9fd94e2aa60aa8bbf719f5a47040a77c201c7a1571b950cf4f3109a9150cc447@group.calendar.google.com'
-
 def connect_db():
     """Connects to the specific database."""
     rv = sqlite3.connect(app.config['DATABASE'])
@@ -267,6 +265,7 @@ def generate_schedule(league_id):
             db.execute('DELETE FROM games WHERE league_id=? AND home_score IS NULL AND away_score IS NULL', [league_id])
             db.commit()
             flash('Games successfully cleared!')
+
 
         pairings = []
         for i in range(len(teams)):
