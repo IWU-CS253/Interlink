@@ -621,21 +621,27 @@ def create_team():
             (league_id,)
         ).fetchone()[0]
 
+        # Checks if max teams are in league and blocks joining if so
         if max_teams is not None and teamCount >= max_teams:
             flash("This league is already at its max number of teams.")
             return redirect(url_for('team_creation'))
+
+        # Gets all teams in the league
         existing_team = db.execute(
             "SELECT 1 FROM teams WHERE league_id = ? AND name = ?",
             (league_id, team_name)
         ).fetchone()
 
+        # Checks if there is a team with same name and blocks joining if so
         if existing_team:
             flash("A team with that name already exists in this league.")
             return redirect(url_for('team_creation'))
 
+        # Prevents joining a league if the league is active
         if league_row['status'] == 'active':
             flash("Selected league is already active")
             return redirect(url_for('team_creation'))
+
         # Inserts new team into table
         db.execute("INSERT INTO teams (name, team_manager, league_id) VALUES (?,?, ?)",
                    [request.form["name"], activeuser['id'], league_id])
