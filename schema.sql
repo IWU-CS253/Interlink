@@ -16,9 +16,11 @@ CREATE TABLE leagues (
     league_name TEXT NOT NULL,
     sport TEXT,
     max_teams INTEGER NOT NULL,
+    admin INTEGER,
     league_admin INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     status TEXT not null default 'signup',
+    FOREIGN KEY (admin) REFERENCES users(id),
     FOREIGN KEY (league_admin) REFERENCES users(id)
 );
 
@@ -28,7 +30,9 @@ CREATE TABLE teams (
     name TEXT NOT NULL,
     league_id INTEGER,
     team_manager INTEGER,
+    admin INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (admin) REFERENCES users(id),
     FOREIGN KEY (league_id) REFERENCES leagues(id),
     FOREIGN KEY (team_manager) REFERENCES users(id),
     UNIQUE (league_id, name)  -- prevent duplicate team names per league
