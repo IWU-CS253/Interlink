@@ -84,13 +84,6 @@
                 <p>No games played yet.</p>
                 {% endif %}
             </div>
-
-        </div>
-            <form action="/change_phase" method="get">
-                <input type="hidden" name="status" value="{{ league["status"] }}">
-                <button type="submit">change</button>
-            </form>
-        </div>
     </div>
 </div>
 {% endblock %}
