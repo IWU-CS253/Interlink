@@ -41,7 +41,7 @@
                     </span>
 
                     <a class="btn btn-outline-danger btn-sm float-end me-1" href="{{ url_for('logout') }}" >Logout</a>
-                    <a class="btn btn-secondary btn-sm float-end" href="{{ url_for('user_page') }}">Profile</a>
+                    <a class="btn btn-outline-secondary btn-sm float-end" href="{{ url_for('user_page') }}">Profile</a>
                 {% else %}
                     <a class="btn btn-outline-primary btn-sm float-end" href="{{ url_for('login') }}">Login</a>
                 {% endif %}
