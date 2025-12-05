@@ -23,7 +23,10 @@ app.config.update(
 
 # Google Calendar Configuration
 SCOPES = ['https://www.googleapis.com/auth/calendar']
-SERVICE_ACCOUNT_FILE = 'interlink-478922-f6de685de9d5.json'
+try:
+    SERVICE_ACCOUNT_FILE = 'interlink-478922-f6de685de9d5.json'
+except FileNotFoundError:
+    pass
 PUBLIC_CALENDAR_ID = '9fd94e2aa60aa8bbf719f5a47040a77c201c7a1571b950cf4f3109a9150cc447@group.calendar.google.com'
 def connect_db():
     """Connects to the specific database."""
