@@ -5,6 +5,9 @@ from datetime import datetime, timedelta
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, request, g, redirect, url_for, render_template, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_limiter.errors import RateLimitExceeded
 
 try:
     from google.oauth2 import service_account
@@ -14,7 +17,11 @@ except ImportError:
     GOOGLE_CALENDAR_AVAILABLE = False
 
 app = Flask(__name__)
-
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[]
+)
 app.config.update(
     DATABASE=os.path.join(app.root_path, 'interlinkData.db'),
     SECRET_KEY='testkey',  # use a strong secret in dev; env var in prod
@@ -63,6 +70,10 @@ def close_db(error):
     if hasattr(g, 'sqlite_db'):
         g.sqlite_db.close()
 
+@app.errorhandler(RateLimitExceeded)
+def handle_rate_limit_exceeded(e):
+    flash(f'Rate limit exceeded: {e.description}', 'error')
+    return redirect(url_for('home_page'))
 @app.route('/', methods=["GET", "POST"])
 def home_page():
     filter = request.args.get('filter', None)
@@ -136,6 +147,7 @@ def get_roster(team_name):
 
 
 @app.route('/league_creation', methods=["GET", "POST"])
+@limiter.limit("5 per hour", key_func=lambda:f"create_league:{get_remote_address()}")
 def league_creation():
     if request.method == "POST":
         db = get_db()
@@ -497,6 +509,7 @@ def admin_add_player(league_id):
     return redirect(url_for('league_admin', league_id=league_id))
 
 @app.route('/create_team', methods=["POST"])
+@limiter.limit("5 per hour", key_func=lambda:f"create_team:{get_remote_address()}")
 def create_team():
     if not session.get("logged_in"):
         return redirect('/login')
@@ -781,7 +794,7 @@ def league_admin(league_id):
     league = db.execute("SELECT * FROM leagues WHERE id = ?",(league_id,)).fetchone()
     if league is None:
         flash("League doesn't exist")
-        return redirect(url_for("league_view"))
+        return redirect(url_for("home_page"))
 
     #Get all teams in the league
     team_rows = db.execute(
