@@ -15,7 +15,6 @@ except ImportError:
 
 app = Flask(__name__)
 
-
 app.config.update(
     DATABASE=os.path.join(app.root_path, 'interlinkData.db'),
     SECRET_KEY='testkey',  # use a strong secret in dev; env var in prod
@@ -50,7 +49,6 @@ def initdb_command():
     init_db()
     print('Initialized the database.')
 
-
 def get_db():
     """Opens a new database connection if there is none yet for the
     current application context.
@@ -58,7 +56,6 @@ def get_db():
     if not hasattr(g, 'sqlite_db'):
         g.sqlite_db = connect_db()
     return g.sqlite_db
-
 
 @app.teardown_appcontext
 def close_db(error):
@@ -172,7 +169,8 @@ def delete_league(league_id):
         return redirect(url_for('league_admin', league_id=league_id))
 
     # Delete all memberships for that league
-    # db.execute("DELETE FROM memberships WHERE league_id = ?", (league_id,))
+    db.execute("DELETE FROM memberships WHERE league_id = ?", (league_id,))
+    db.commit()
     # And the league itself
     db.execute("DELETE FROM leagues WHERE id = ?", (league_id,))
     db.commit()
@@ -395,14 +393,15 @@ def join_team_submit():
     if not session.get("logged_in"):
         flash("Please log in to join a team!")
         return redirect("/login")
-
+    league_name = request.form["league_hidden"]
     team_name = request.form["team"]
     user = get_current_user()
     db = get_db()
 
     user_id = user["id"]
-    cur = db.execute('SELECT id, status FROM teams where name =?', [team_name])
+    cur = db.execute('SELECT id FROM teams where name =?', [team_name])
     team_id = cur.fetchone()[0]
+    league_id = db.execute('SELECT id FROM leagues where league_name =?', [league_name]).fetchone()[0]
 
 
     #Checks that the user is not already a member of the team
@@ -414,7 +413,15 @@ def join_team_submit():
         flash("You are already a member of this team!")
         return redirect("/join_team_form")
 
-    db.execute('INSERT INTO memberships (user_id, team_id) VALUES (?,?)', [user_id, team_id])
+    in_league = db.execute(
+        'SELECT * FROM memberships WHERE user_id = ? AND league_id = ?',
+        [user_id, league_id]).fetchone()
+
+    if in_league:
+        flash("You are already a member of a team in this league!")
+        return redirect("/join_team_form")
+
+    db.execute('INSERT INTO memberships (user_id, team_id, league_id) VALUES (?,?,?)', [user_id, team_id, league_id])
     db.commit()
     flash("Joined The Team!")
     return redirect("/join_team_form")

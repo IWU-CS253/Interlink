@@ -55,11 +55,13 @@ CREATE INDEX idx_games_game_date ON games(game_date);
 CREATE TABLE memberships (
     user_id INTEGER NOT NULL,
     team_id INTEGER NOT NULL,
+    league_id INTERGER NOT NULL,
     role TEXT DEFAULT 'player',
     joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, team_id),
     FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (team_id) REFERENCES teams(id)
+    FOREIGN KEY (team_id) REFERENCES teams(id),
+    FOREIGN KEY (league_id) REFERENCES leagues(id)
 );
 
 -- SYNCED CALENDAR GAMES
