@@ -67,9 +67,11 @@ CREATE TABLE memberships (
 -- SYNCED CALENDAR GAMES
 CREATE TABLE calendar_synced_games (
     game_id INTEGER PRIMARY KEY,
+    league_id INTEGER NOT NULL,
     synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     calendar_event_id TEXT,
-    FOREIGN KEY (game_id) REFERENCES games(id)
+    FOREIGN KEY (game_id) REFERENCES games(id),
+    FOREIGN KEY (league_id) REFERENCES games(league_id)
 );
 
 CREATE INDEX idx_calendar_synced_games_game_id ON calendar_synced_games(game_id);
