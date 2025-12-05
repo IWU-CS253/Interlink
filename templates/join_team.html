@@ -69,7 +69,7 @@
    <dl>
        <dt>Select Team</dt>
             <dd><select style="width: 35%" class="form-select form-select-lg mb-3"  name="team" required>
-                <option disabled selected>Teams</option>
+                <option value="" disabled selected>Teams</option>
                 {% for team in teams %}
                     <option value="{{ team }}" class="dropdown-item" >{{ team }}</option>
                 {% endfor %}
