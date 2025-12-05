@@ -2,6 +2,8 @@ import os
 import operator
 import random
 import googleapiclient
+import yagmail
+import secrets
 from datetime import datetime, timedelta
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, request, g, redirect, url_for, render_template, flash, session
@@ -154,6 +156,16 @@ def get_roster(team_name):
 # Sets a limit for creating leagues to 5 per hour
 @limiter.limit("5 per hour", key_func=lambda:f"create_league:{get_remote_address()}")
 def league_creation():
+    # Logged in check
+    if not session.get('logged_in'):
+        flash("Please log in to access that page.")
+        return redirect(url_for('login'))
+
+    # Admin check
+    activeuser = get_current_user()
+    if activeuser is None or activeuser['role'] != "admin":
+        flash("You do not have permission to do that.")
+        return redirect('/')
     if request.method == "POST":
         db = get_db()
         db.execute("INSERT into leagues (league_name, sport, max_teams) VALUES (?, ?, ?)", [request.form["league_name"], request.form["sport"], request.form["max_teams"]])
@@ -463,7 +475,6 @@ def join_team_submit():
     team_id = cur.fetchone()[0]
     league_id = db.execute('SELECT id FROM leagues where league_name =?', [league_name]).fetchone()[0]
 
-
     #Checks that the user is not already a member of the team
     existing = db.execute(
         'SELECT * FROM memberships WHERE user_id = ? AND team_id = ?',
@@ -554,9 +565,15 @@ def admin_add_player(league_id):
 # Creates a limit on team creations per hour
 @limiter.limit("5 per hour", key_func=lambda:f"create_team:{get_remote_address()}")
 def create_team():
+    activeuser = get_current_user()
     # Checks that a user is logged in
     if not session.get("logged_in"):
         return redirect('/login')
+    # Checks that a user is admin
+    elif activeuser is None or activeuser['role'] != "admin":
+        flash("You do not have permission to do that.")
+        return redirect('/')
+
     else:
         db = get_db()
 
@@ -674,12 +691,25 @@ def signup():
         else:
             #Create user In DB
             try:
+
                 db = get_db()
-                db.execute(
-                    'INSERT INTO users (username, password_hash, name, email) VALUES (?, ?, ?, ?)',
-                    (username, generate_password_hash(password), name, email)
-                )
-                db.commit()
+                existing_email = db.execute('SELECT id FROM users WHERE email=?', (email,)).fetchone()
+                if existing_email:
+                    error = 'An account with this email already exists.'
+                else:
+                    verification_token = secrets.token_urlsafe(32)
+                    db.execute(
+                        'INSERT INTO pending_registrations (username, email, name, password_hash, verification_token) VALUES (?, ?, ?, ?, ?)',
+                        (username, email, name, generate_password_hash(password), verification_token)
+                    )
+                    db.commit()
+
+                    pending_id = db.execute('SELECT id FROM pending_registrations WHERE username=?', (username,)).fetchone()[0]
+
+                    email_sent = send_verification_email(email, username, verification_token, pending_id)
+                    if email_sent:
+                        flash('Verification email sent')
+                        return redirect("/")
             except error:
                 error = 'That username is already taken.'
             else:
@@ -1145,6 +1175,12 @@ def whole_league_creation():
         if not session.get("logged_in"):
             flash("Please log in to create a league and teams.")
             return redirect(url_for('login'))
+
+        activeuser = get_current_user()
+        if activeuser is None or activeuser['role'] != "admin":
+            flash("You do not have permission to do that.")
+            return redirect('/')
+
         if request.method == "GET":
             #Firstly only show the league form
             return render_template("whole_league_creation.html", step=1)
@@ -1157,6 +1193,11 @@ def whole_league_creation():
             maxteams = request.form.get('max_teams')
             error = None
 
+            db = get_db()
+            leagues = db.execute('SELECT league_name FROM leagues').fetchall()[0]
+            for name in leagues:
+                if league_name == name:
+                    error = "League name already taken"
             if not league_name:
                 error = "League name required"
             elif not sport:
@@ -1221,6 +1262,84 @@ def whole_league_creation():
             flash("League and teams created successfully.")
             return redirect(url_for('home_page'))
 
+# Route for the verification link that moves users from pending to actual users table
+@app.route('/verify-email/<int:pending_id>/<token>')
+def verify_email(pending_id, token):
+    db = get_db()
+
+    # Get pending registration
+    pending = db.execute(
+        'SELECT id, username, email, name, password_hash FROM pending_registrations WHERE id = ? AND verification_token = ?',
+        (pending_id, token)
+    ).fetchone()
+
+    if pending is None:
+        flash('Invalid or expired verification link.', 'error')
+        return redirect(url_for('home_page'))
+
+    # Check again if username or email already exists in users table
+    existing_user = db.execute(
+        'SELECT id FROM users WHERE username = ? OR email = ?',
+        (pending['username'], pending['email'])
+    ).fetchone()
+
+    if existing_user:
+        # Remove the pending registration
+        db.execute('DELETE FROM pending_registrations WHERE id = ?', (pending_id,))
+        db.commit()
+        flash('Username or email already exists. Please use a different one.', 'error')
+        return redirect(url_for('signup'))
+
+    # Create the actual user account
+    db.execute(
+        'INSERT INTO users (username, password_hash, name, email, email_verified) VALUES (?, ?, ?, ?, ?)',
+        (pending['username'], pending['password_hash'], pending['name'], pending['email'], True)
+    )
+
+    # Remove from pending registrations
+    db.execute('DELETE FROM pending_registrations WHERE id = ?', (pending_id,))
+
+    db.commit()
+
+    flash('Email verified successfully! Your account has been created. You can now log in.', 'success')
+    return redirect(url_for('login'))
+
+
+def send_verification_email(to_email, username, token, pending_id):
+    """Send account verification email using yagmail"""
+    try:
+        # Create verification link
+        verification_link = f"http://127.0.0.1:5000/verify-email/{pending_id}/{token}"
+
+        # Email content
+        subject = "Verify Your Interlink Account"
+        text_content = f"""
+        Welcome to Interlink, {username}!
+
+        Please verify your email address by visiting this link:
+
+        {verification_link}
+
+        This link will expire in 24 hours.
+
+        If you didn't create this account, please ignore this email.
+        """
+
+        # Send email with yagmail
+        yag = yagmail.SMTP("interlinkfall25@gmail.com", "fbts pwrs bwge xmbm")
+        yag.send(
+            to=to_email,
+            subject=subject,
+            contents=[text_content]
+        )
+
+        print(f"Verification email sent to {to_email}")
+        return True
+
+    except Exception as e:
+        print(f"Failed to send verification email: {e}")
+        # Don't fail signup if email fails, just warn user
+        return False
 
 if __name__ == '__main__':
     app.run(port=3000)
