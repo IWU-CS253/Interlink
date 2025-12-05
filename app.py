@@ -104,6 +104,20 @@ def home_page():
 
     return render_template('homepage.html', leagues=leagues, filter=filter)
 
+@app.route('/user_page', methods=["GET", "POST"])
+def user_page():
+    db = get_db()
+    username_id = request.args.get('username')
+    if username_id:
+        username = username_id.strip()
+    elif session.get('logged_in'):
+        username = session.get('username')
+    else:
+        flash('Please log in or specify a username.')
+        return redirect(url_for('home_page'))
+
+    user = db.execute("SELECT username, name, email FROM users WHERE username=?", (username,)).fetchone()
+    return render_template('user_page.html', username=username, user=user)
 @app.route('/team_view', methods=["GET"])
 def team_view():
     team_name= request.args.get("team_name")

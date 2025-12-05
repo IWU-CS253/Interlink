@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="m-3 mt-2">
+    <h1>User Profile</h1>
+    <div class="card-header">
+        <h5 class="mb-0">Personal Information</h5>
+    </div>
+    <div class="card-body">
+        <ul class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
+            <li class="list-group-item px-0">
+                <p>Username: {{ user.username }}</p>
+                <p>Name: {{ user.name }}</p>
+                <p>Email: {{ user.email }}</p>
+            </li>
+        </ul>
+    </div>
+</div>
+
+{% endblock %}
