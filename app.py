@@ -1,14 +1,19 @@
 import os
 import operator
 import random
+from datetime import datetime, timedelta
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, request, g, redirect, url_for, render_template, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
+import json
 
-# Google Calendar imports
-from google_auth_oauthlib.flow import Flow
-from googleapiclient.discovery import build
-from google.auth.transport.requests import Request
+try:
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    GOOGLE_CALENDAR_AVAILABLE = True
+except ImportError:
+    GOOGLE_CALENDAR_AVAILABLE = False
+
 app = Flask(__name__)
 
 
@@ -19,9 +24,8 @@ app.config.update(
 
 # Google Calendar Configuration
 SCOPES = ['https://www.googleapis.com/auth/calendar']
-CLIENT_SECRETS_FILE = "credentials.json"
-REDIRECT_URI = 'http://localhost:3000/oauth2callback'
-
+SERVICE_ACCOUNT_FILE = 'interlink-478922-f6de685de9d5.json'
+PUBLIC_CALENDAR_ID = '9fd94e2aa60aa8bbf719f5a47040a77c201c7a1571b950cf4f3109a9150cc447@group.calendar.google.com'
 def connect_db():
     """Connects to the specific database."""
     rv = sqlite3.connect(app.config['DATABASE'])
@@ -62,6 +66,7 @@ def close_db(error):
 
 @app.route('/', methods=["GET", "POST"])
 def home_page():
+    calendar_connected = False
     filter = request.args.get('filter', None)
     db = get_db()
 
@@ -73,7 +78,14 @@ def home_page():
         cur = db.execute("SELECT id, league_name, sport, max_teams, status from leagues")
         leagues = cur.fetchall()
 
-    return render_template('homepage.html', leagues=leagues)
+    if GOOGLE_CALENDAR_AVAILABLE:
+        success, message = sync_games_to_calendar()
+        if success:
+            # Set a flag so we know calendar is synced
+            session['calendar_connected'] = True
+            calendar_connected = True
+
+    return render_template('homepage.html', leagues=leagues, filter=filter, calendar_connected=calendar_connected)
 
 @app.route('/team_view', methods=["GET"])
 def team_view():
@@ -816,10 +828,20 @@ def edit_score():
 
     return render_template('edit_score.html', game=game)
 
-# Google Calendar Commands
+# GOOGLE CALENDAR METHODS
+def get_calendar_service():
+    """Get Google Calendar service with service account credentials"""
+    if not GOOGLE_CALENDAR_AVAILABLE:
+        return None
+
+    credentials = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    service = build('calendar', 'v3', credentials=credentials)
+    return service
 
 def create_game_event(game):
-    date = str(['game_date'])
+    """Creates the calendar event for a game in database"""
+    date = str(game['game_date'])
 
     # Puts the date into the expected format for Google Calendar
     if ' ' in date:
@@ -828,7 +850,7 @@ def create_game_event(game):
         date = date.split('T')[0]
 
     event = {
-        'summary': f"🏆 {game['home_team']} vs {game['away_team']}", # Makes the Title
+        'summary': f"{game['home_team']} vs {game['away_team']}", # Makes the Title
         'description': f"League: {game['league_name']}\nSport: {game['sport']}\nScore: {game['home_score']} - {game['away_score']}\n\nHome Team: {game['home_team']}\nAway Team: {game['away_team']}",
         'start': {
             'date': date,  # Puts in the date
@@ -841,6 +863,66 @@ def create_game_event(game):
     }
     return event
 
+def sync_games_to_calendar():
+    """Sync only new games to Google Calendar (using session tracking)"""
+    service = get_calendar_service()
+    if not service:
+        return False, "Calendar service not available"
+
+    db = get_db()
+
+    today = datetime.now().date()
+    next_week = today + timedelta(days=30)
+    today_str = today.strftime('%Y-%m-%d')
+    next_week_str = next_week.strftime('%Y-%m-%d')
+    # Get all games from database
+    games = db.execute("""
+                       SELECT games.id,
+                              games.game_date,
+                              games.home_score,
+                              games.away_score,
+                              home_team.name as home_team,
+                              away_team.name as away_team,
+                              leagues.league_name,
+                              leagues.sport
+                       FROM games
+                                JOIN teams home_team ON games.home_team_id = home_team.id
+                                JOIN teams away_team ON games.away_team_id = away_team.id
+                                JOIN leagues ON games.league_id = leagues.id
+                           WHERE games.game_date >= ? AND games.game_date <= ?
+                       ORDER BY games.game_date
+                       """,[today_str, next_week_str]).fetchall()
+
+    # Get the set of synced game IDs from session (initialize if not exists)
+    if 'synced_game_ids' not in session:
+        session['synced_game_ids'] = []
+
+    synced_game_ids = set(session['synced_game_ids'])
+
+    # Only sync games that aren't already tracked as synced
+    new_games = []
+    for game in games:
+        if game['id'] not in synced_game_ids:
+            new_games.append(game)
+
+    if len(new_games) == 0:
+        return True, "Calendar is already up to date!"
+
+    synced_count = 0
+    for game in new_games:
+        event = create_game_event(game)
+
+        service.events().insert(calendarId=PUBLIC_CALENDAR_ID, body=event).execute()
+
+        # Mark this game as synced in the session
+        synced_game_ids.add(game['id'])
+
+        synced_count += 1
+
+    # Save updated synced IDs back to session
+    session['synced_game_ids'] = list(synced_game_ids)
+
+    return True, f"Successfully synced {synced_count} new game(s) to calendar!"
 
 # Helper for standings
 def get_standings(league_id):
