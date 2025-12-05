@@ -1,6 +1,7 @@
 import os
 import operator
 import random
+import googleapiclient
 from datetime import datetime, timedelta
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, request, g, redirect, url_for, render_template, flash, session
@@ -17,12 +18,14 @@ except ImportError:
     GOOGLE_CALENDAR_AVAILABLE = False
 
 app = Flask(__name__)
+
 # Creates flask_limiter extension
 limiter = Limiter(
     get_remote_address,
     app=app,
     default_limits=[]
 )
+
 app.config.update(
     DATABASE=os.path.join(app.root_path, 'interlinkData.db'),
     SECRET_KEY='testkey',  # use a strong secret in dev; env var in prod
@@ -30,11 +33,13 @@ app.config.update(
 
 # Google Calendar Configuration
 SCOPES = ['https://www.googleapis.com/auth/calendar']
+# Error handling for Unittests
 try:
     SERVICE_ACCOUNT_FILE = 'interlink-478922-f6de685de9d5.json'
 except FileNotFoundError:
     pass
 PUBLIC_CALENDAR_ID = '9fd94e2aa60aa8bbf719f5a47040a77c201c7a1571b950cf4f3109a9150cc447@group.calendar.google.com'
+
 def connect_db():
     """Connects to the specific database."""
     rv = sqlite3.connect(app.config['DATABASE'])
@@ -71,7 +76,7 @@ def close_db(error):
     if hasattr(g, 'sqlite_db'):
         g.sqlite_db.close()
 
-# Makes flask_limiter errors a flash message
+# Makes flask_limiter errors a flash message instead of separate page
 @app.errorhandler(RateLimitExceeded)
 def handle_rate_limit_exceeded(e):
     flash(f'Rate limit exceeded', 'error')
@@ -81,6 +86,7 @@ def home_page():
     filter = request.args.get('filter', None)
     db = get_db()
 
+    # Checks and applies filter to league results
     if filter:
         cur = db.execute('SELECT id, league_name, sport, max_teams, status FROM leagues where SPORT=?', (filter,))
         leagues = cur.fetchall()
@@ -89,6 +95,7 @@ def home_page():
         cur = db.execute("SELECT id, league_name, sport, max_teams, status from leagues")
         leagues = cur.fetchall()
 
+    # Syncs Google Calendar games when route is run
     if GOOGLE_CALENDAR_AVAILABLE:
         success = sync_games_to_calendar()
         if success:
@@ -138,10 +145,12 @@ def team_view():
 # Helper method to get a teams roster with only their team name
 def get_roster(team_name):
     db = get_db()
+    # Finds a team id from the name
     team_id = db.execute('SELECT id FROM teams WHERE name=?', [team_name]).fetchone()[0]
     cur = db.execute("SELECT user_id FROM memberships WHERE team_id=?", [team_id])
     roster_ids = [row[0] for row in cur.fetchall()]
     roster=[]
+    # Loops through player ids and gets their real name for display
     for player_id in roster_ids:
         cur=db.execute('SELECT name FROM users WHERE id=?',[player_id])
         roster.append(cur.fetchone()[0])
@@ -165,11 +174,12 @@ def league_creation():
 
 @app.route('/league/<int:league_id>/admin/delete_league', methods=["POST"])
 def delete_league(league_id):
-    # admin check
+    # Logged in check
     if not session.get('logged_in'):
         flash('Please log in to access that page.')
         return redirect(url_for('login'))
 
+    # Admin check
     activeuser = get_current_user()
     if activeuser is None or activeuser['role'] != "admin":
         flash("You do not have permission to do that.")
@@ -181,6 +191,8 @@ def delete_league(league_id):
         "SELECT id, status FROM leagues WHERE id = ?",
         (league_id,)
     ).fetchone()
+
+    # Handles if a league does not exist
     if league is None:
         flash("League not found.")
         return redirect(url_for('home_page'))
@@ -190,6 +202,29 @@ def delete_league(league_id):
         flash("Leagues can only be deleted while the league is in SignUp mode.")
         return redirect(url_for('league_admin', league_id=league_id))
 
+    # Delete from Google Calendar if available
+    if GOOGLE_CALENDAR_AVAILABLE:
+        service = get_calendar_service()
+        if service:
+            # Look up each games calendar event ID from the sync table
+            synced_record = db.execute(
+                'SELECT calendar_event_id FROM calendar_synced_games WHERE league_id = ?',
+                (league_id,)
+            ).fetchall()
+
+            if synced_record:
+                for record in synced_record:
+                    # Delete the event using the stored event ID
+                    service.events().delete(
+                        calendarId=PUBLIC_CALENDAR_ID,
+                        eventId=record['calendar_event_id']
+                    ).execute()
+
+                # Remove from synced games table
+                db.execute('DELETE FROM calendar_synced_games WHERE league_id = ?', (league_id,))
+
+    # Delete games first
+    db.execute("DELETE FROM games WHERE league_id = ?", (league_id,))
     # Delete all memberships for that league
     db.execute("DELETE FROM memberships WHERE league_id = ?", (league_id,))
     db.commit()
@@ -312,15 +347,21 @@ def generate_schedule(league_id):
                         ).fetchone()
 
                         if synced_record:
-                                # Delete the event using the stored event ID
-                                service.events().delete(
-                                    calendarId=PUBLIC_CALENDAR_ID,
-                                    eventId=synced_record['calendar_event_id']
-                                ).execute()
+                                # Delete the event using the stored event ID if games are found
+                                try:
+                                    service.events().delete(
+                                        calendarId=PUBLIC_CALENDAR_ID,
+                                        eventId=synced_record['calendar_event_id']
+                                    ).execute()
+                                # Error handling for if a game was already deleted
+                                except googleapiclient.errors.HttpError as e:
+                                    if e.resp.status == 410:  # Resource already deleted
+                                        print(f"Calendar event {game['calendar_event_id']} already deleted")
+                                        pass
                                 # Remove from synced games table
                                 db.execute('DELETE FROM calendar_synced_games WHERE game_id = ?', [game['id']])
 
-
+            # Remove the unplayed games from the games table
             db.execute('DELETE FROM games WHERE league_id=? AND home_score IS NULL AND away_score IS NULL', [league_id])
             db.commit()
             flash('Games successfully cleared!')
@@ -381,6 +422,7 @@ def generate_schedule(league_id):
 @app.route('/team-creation')
 def team_creation():
     db = get_db()
+    # Gets all the league names for the creation choices
     league = db.execute("SELECT league_name FROM leagues")
     league_rows = league.fetchall()
     leagues = [row[0] for row in league_rows]
@@ -412,14 +454,17 @@ def join_team_form():
 
 @app.route('/join_team_submit', methods=["POST"])
 def join_team_submit():
+    # Checks that a user is logged in
     if not session.get("logged_in"):
         flash("Please log in to join a team!")
         return redirect("/login")
+
     league_name = request.form["league_hidden"]
     team_name = request.form["team"]
     user = get_current_user()
     db = get_db()
 
+    # Gets the required ids
     user_id = user["id"]
     cur = db.execute('SELECT id FROM teams where name =?', [team_name])
     team_id = cur.fetchone()[0]
@@ -435,6 +480,7 @@ def join_team_submit():
         flash("You are already a member of this team!")
         return redirect("/join_team_form")
 
+    # Checks that a user is not already a member of a team in the league
     in_league = db.execute(
         'SELECT * FROM memberships WHERE user_id = ? AND league_id = ?',
         [user_id, league_id]).fetchone()
@@ -515,17 +561,21 @@ def admin_add_player(league_id):
 # Creates a limit on team creations per hour
 @limiter.limit("5 per hour", key_func=lambda:f"create_team:{get_remote_address()}")
 def create_team():
+    # Checks that a user is logged in
     if not session.get("logged_in"):
         return redirect('/login')
     else:
         db = get_db()
 
+        # Gets the team name from the form
         team_name = (request.form.get("name") or "").strip()
 
+        # Checks that the team name blank is filled in
         if not team_name:
             flash("Team name is required.")
             return redirect(url_for('team_creation'))
 
+        # Gets the league as well as its id and max number of teams
         league = db.execute("SELECT id, max_teams FROM leagues WHERE league_name=?", [request.form["league"]])
         league_row = league.fetchone()
         league_id = league_row["id"]
@@ -550,6 +600,7 @@ def create_team():
             flash("A team with that name already exists in this league.")
             return redirect(url_for('team_creation'))
 
+        # Inserts new team into table
         db.execute("INSERT INTO teams (name, team_manager, league_id) VALUES (?,?, ?)",
                    [request.form["name"], request.form["manager"], league_id])
         db.commit()
@@ -982,7 +1033,7 @@ def create_game_event(game):
             'timeZone': 'America/Chicago'
         },
         'end': {
-            'dateTime': end_datetime,  # Puts the end date as the same as original date
+            'dateTime': end_datetime,
             'timeZone': 'America/Chicago'
         },
         'colorId': color,
@@ -1032,6 +1083,8 @@ def sync_games_to_calendar():
     for game in games:
         if game['id'] not in synced_game_ids:
             new_games.append(game)
+        elif game['id'] in synced_game_ids:
+            continue
 
     # Ends the process if no new games
     if len(new_games) == 0:
@@ -1040,14 +1093,15 @@ def sync_games_to_calendar():
     # Loops through the new games creating events and adding them to the calendar
     for game in new_games:
         event = create_game_event(game)
+        # Insert new event
         created_event = service.events().insert(
             calendarId=PUBLIC_CALENDAR_ID,
             body=event
         ).execute()
         # Store the game_id and calendar event_id in the database
         db.execute(
-            'INSERT INTO calendar_synced_games (game_id, calendar_event_id) VALUES (?, ?)',
-            [game['id'], created_event['id']]
+            'INSERT INTO calendar_synced_games (game_id, league_id, calendar_event_id) VALUES (?, ?,?)',
+            [game['id'], game['league_id'], created_event['id']]
         )
         db.commit()
     flash('All games synced')
