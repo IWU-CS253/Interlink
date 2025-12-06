@@ -176,7 +176,6 @@ def leave_team():
     flash(f"You have left {team_name}.")
     return redirect(url_for('user_page'))
 
->>>>>>> main
 @app.route('/team_view', methods=["GET"])
 def team_view():
     team_name= request.args.get("team_name")
