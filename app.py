@@ -1004,57 +1004,6 @@ def league_manager(league_id):
         games=games
     )
 
-@app.route('/league/<int:league_id>/admin')
-def league_admin(league_id):
-    #first check that user is logged in
-    if not session.get('logged_in'):
-        flash('Please log in to access that page.')
-        return redirect(url_for('login'))
-
-    #get active user from helper function and then check if they exist and are admin
-    activeuser = get_current_user()
-    if activeuser is None or activeuser['role'] != "admin":
-        flash("You do not have permission to view that page.")
-        return redirect('/')
-
-    #actual logic before redirect
-    db = get_db()
-    league = db.execute("SELECT * FROM leagues WHERE id = ?",(league_id,)).fetchone()
-    if league is None:
-        flash("League doesn't exist")
-        return redirect(url_for("home_page"))
-
-    #Get all teams in the league
-    team_rows = db.execute(
-        "SELECT id, name FROM teams WHERE league_id = ? ORDER BY name",
-        (league_id,)
-    ).fetchall()
-
-    #Use get_roster(team_name) for each team
-    teams = []
-    for row in team_rows:
-        roster_names = get_roster(row['name'])
-        teams.append({
-            'id': row['id'],
-            'name': row['name'],
-            'roster': roster_names,
-        })
-
-    #get all games for the league, and break it up into different python variables so we can more easily use different parts of it to
-    # display easier in the admin panel
-    games = db.execute(""" SELECT g.id, g.game_date, g.home_score, g.away_score, t1.name AS home_team, t2.name AS away_team
-                       FROM games g JOIN teams t1 ON g.home_team_id = t1.id JOIN teams t2 ON g.away_team_id = t2.id
-                       WHERE g.league_id = ?
-                       ORDER BY g.game_date ASC
-                       """, (league_id,)).fetchall()
-
-    return render_template(
-        'league_admin.html',
-        league=league,
-        teams=teams,
-        games=games
-    )
-
 @app.route('/league/<int:league_id>/admin/remove_player', methods=['POST'])
 def remove_player(league_id):
     #admin check
