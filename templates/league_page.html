@@ -1,14 +1,14 @@
 {% extends "layout.html" %}
 {% block body %}
 <div class="container-fluid py-4">
-<!-- Admin button -->
+<!-- LEAGUE MANAGER button -->
             <div class="row mb-4">
                 <div class="col">
                     <div class="d-flex justify-content-between align-items-center">
                         <h1 class="mb-0">{{ league['league_name'] }}</h1>
                         {% if session.get('logged_in') %}
-                            {% if session.get('role') == 'admin' %}
-                                <a class="btn btn-secondary btn-sm float-end" href="{{ url_for('league_admin', league_id=league['id']) }}" >Admin Page</a>
+                            {% if session.get('role') == 'league_manager' or session.get('role') == 'admin' %}
+                                <a class="btn btn-secondary btn-sm float-end" href="{{ url_for('league_manager', league_id=league['id']) }}" >League Manager Page</a>
                             {% endif %}
                         {% endif %}
                     </div>
