@@ -133,11 +133,37 @@ def user_page():
 
     user_id = user['id']
 
-    managed_leagues = db.execute("SELECT id, league_name FROM leagues WHERE admin=? OR league_admin=?", (user_id, user_id)).fetchall()
+    managed_leagues = db.execute("SELECT id, league_name, sport, status FROM leagues WHERE admin=? OR league_admin=?", (user_id, user_id)).fetchall()
 
-    teams = db.execute("SELECT teams.id, teams.name, leagues.id AS league_id, leagues.league_name, leagues.sport FROM "
-                       "memberships JOIN teams ON memberships.team_id=teams.id JOIN leagues ON teams.league_id=leagues.id "
-                       "WHERE memberships.user_id=? ORDER BY leagues.league_name", [user_id]).fetchall()
+    teams = db.execute("SELECT DISTINCT leagues.id, leagues.league_name, leagues.sport, leagues.status FROM memberships "
+                       "JOIN teams ON memberships.team_id = teams.id JOIN leagues ON teams.league_id = leagues.id "
+                       "WHERE memberships.user_id=?", (user_id,)).fetchall()
+
+    all_leagues = {}
+    for league in managed_leagues:
+        all_leagues[league['id']] = {
+            'id': league['id'],
+            'league_name': league['league_name'],
+            'sport': league['sport'],
+            'status': league['status'],
+            'role': 'League Manager'
+        }
+
+    for league in teams:
+        if league['id'] not in all_leagues:
+            all_leagues[league['id']] = {
+                'id': league['id'],
+                'league_name': league['league_name'],
+                'sport': league['sport'],
+                'status': league['status'],
+                'role': 'Team Member'
+            }
+
+    all_league = list(all_leagues.values())
+
+    teams = db.execute('SELECT teams.id, teams.name, leagues.id AS league_id, leagues.league_name, leagues.sport FROM memberships '
+                       'JOIN teams ON memberships.team_id=teams.id JOIN leagues ON teams.league_id=leagues.id WHERE '
+                       'memberships.user_id=? ORDER BY leagues.league_name', [user_id]).fetchall()
 
     games_in_league = {}
     for team in teams:
@@ -159,7 +185,7 @@ def user_page():
                 games_in_league[league_identifier]['games'].append(game_tracker)
 
     return render_template('user_page.html', username=username, user=user, teams=teams,
-                           games_in_league=games_in_league, managed_leagues=managed_leagues)
+                           all_league=all_league, games_in_league=games_in_league, managed_leagues=managed_leagues)
 
 @app.route('/leave_team', methods=["POST"])
 def leave_team():

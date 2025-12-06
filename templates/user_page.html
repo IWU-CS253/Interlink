@@ -4,12 +4,6 @@
     <div class="row mb-4">
         <div class="col">
             <h1>User Profile</h1>
-            {% if managed_leagues %}
-                {% for league in managed_leagues %}
-                <a href="{{ url_for('league_manager', league_id=league['id']) }}"
-               class="btn btn-secondary">League Manager</a>
-                {% endfor %}
-            {% endif %}
         </div>
     </div>
     <div class="card-mb-4">
@@ -27,6 +21,50 @@
             </div>
         </div>
     </div>
+
+    {% if all_league %}
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">League Menu</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for league in all_league %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ league.league_name }}</h6>
+                                    <p class="card-text mb-1">
+                                        <small class="text-muted">Sport: {{ league.sport }}</small>
+                                    </p>
+                                    <p class="card-text mb-1">
+                                        <small class="text-muted">Status:
+                                            <span class="badge {% if league.status == 'signup' %}bg-success{% else %}bg-primary{% endif %}">
+                                                {{ league.status|upper }}
+                                            </span>
+                                        </small>
+                                    </p>
+                                    <p class="card-text">
+                                        <small class="text-muted">Role: {{ league.role }}</small>
+                                    </p>
+                                    <a href="{{ url_for('league_page', league_id=league.id) }}"
+                                       class="btn btn-sm btn-outline-primary">View League</a>
+                                    {% if league.role == 'League Manager' %}
+                                    <a href="{{ url_for('league_manager', league_id=league.id) }}"
+                                       class="btn btn-sm btn-outline-secondary">Manage</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     {% if teams %}
     {% for team in teams %}
