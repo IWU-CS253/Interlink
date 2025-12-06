@@ -6,10 +6,8 @@
                 <div class="col">
                     <div class="d-flex justify-content-between align-items-center">
                         <h1 class="mb-0">{{ league['league_name'] }}</h1>
-                        {% if session.get('logged_in') %}
-                            {% if session.get('role') == 'league_manager' or session.get('role') == 'admin' %}
-                                <a class="btn btn-secondary btn-sm float-end" href="{{ url_for('league_manager', league_id=league['id']) }}" >League Manager Page</a>
-                            {% endif %}
+                        {% if league_manager %}
+                            <a class="btn btn-secondary btn-sm float-end" href="{{ url_for('league_manager', league_id=league['id']) }}" >League Manager Page</a>
                         {% endif %}
                     </div>
                 </div>

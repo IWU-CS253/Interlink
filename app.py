@@ -302,6 +302,11 @@ def league_creation():
         flash("Please log in to access that page.")
         return redirect(url_for('login'))
 
+    activeuser = get_current_user()
+    if activeuser is None:
+        flash("Please log in to access that page.")
+        return redirect(url_for('login'))
+
     if request.method == "POST":
         db = get_db()
         db.execute("INSERT into leagues (league_name, sport, max_teams, league_admin) VALUES (?, ?, ?, ?)", [request.form["league_name"], request.form["sport"], request.form["max_teams"], activeuser['id']])
@@ -1214,6 +1219,13 @@ def league_page(league_id):
     standings = get_standings(league_id)
     games = get_league_games(league_id)
 
+    league_manager = False
+    if session.get('logged_in'):
+        activeuser = get_current_user()
+        if activeuser:
+            if activeuser['role'] == 'admin' or league['league_admin'] == activeuser['id']:
+                league_manager = True
+
     # Sort by wins/name
     sort_by = request.args.get('sort', 'wins')
 
@@ -1227,7 +1239,7 @@ def league_page(league_id):
                            teams=teams,
                            standings=standings,
                            games=games,
-                           sort_by=sort_by)
+                           sort_by=sort_by, league_manager=league_manager)
 
 @app.route('/league/<int:league_id>/league_manager')
 def league_manager(league_id):
@@ -1236,8 +1248,13 @@ def league_manager(league_id):
         return redirect(url_for('login'))
 
     activeuser = get_current_user()
-    if activeuser is None or activeuser['role'] != 'league_manager':
-        if activeuser['role'] != 'admin':
+
+    if activeuser is None:
+        flash('Please log in to view this page')
+        return redirect('/')
+
+    if activeuser['role'] != 'admin':
+        if not league_manager:
             flash('You do not have permission to view this page.')
             return redirect('/')
 
@@ -1570,7 +1587,8 @@ def whole_league_creation():
             error = None
 
             db = get_db()
-            leagues = db.execute('SELECT league_name FROM leagues').fetchall()[0]
+            leagues_rows = db.execute('SELECT league_name FROM leagues').fetchall()
+            leagues = [row['leagues'] for row in leagues_rows]
             for name in leagues:
                 if league_name == name:
                     error = "League name already taken"
