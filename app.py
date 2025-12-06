@@ -21,10 +21,21 @@ except ImportError:
 
 app = Flask(__name__)
 
+
+def get_client_cookies():
+    # Get client cookies
+    user_cookies = request.cookies.get('user_id')
+
+    # Fall back to IP if no cookies
+    if not user_cookies:
+        return get_remote_address()
+
+    return f'{user_cookies}:{request.endpoint}'
+
 # Creates flask_limiter extension
 limiter = Limiter(
-    get_remote_address,
     app=app,
+    key_func= get_client_cookies,
     default_limits=[]
 )
 
