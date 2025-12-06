@@ -893,6 +893,7 @@ def league_page(league_id):
                            games=games,
                            sort_by=sort_by)
 
+@app.route('/league/<int:league_id>/')
 
 @app.route('/league/<int:league_id>/admin')
 def league_admin(league_id):
