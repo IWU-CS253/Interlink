@@ -187,6 +187,7 @@ def team_view():
     roster = get_roster(team_name)
 
     db = get_db()
+
     cur = db.execute("""SELECT games.id,
                                games.game_date,
                                games.home_score,
