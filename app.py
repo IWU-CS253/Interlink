@@ -428,6 +428,9 @@ def generate_schedule(league_id):
                 pairings.append((teams[j]['id'], teams[i]['id']))
         random.shuffle(pairings)
 
+        current_date = datetime.strptime(starting_date, '%Y-%m-%d')
+        current_game_count = 0
+
         start_date = starting_date.split('-')
         year = int(start_date[0])
         month = int(start_date[1])
