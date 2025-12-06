@@ -52,7 +52,7 @@
                             </li>
                             {% endfor %}
                         </ul>
-                        {% if league['status'] !='signup' %}
+                        {% if league['status'] =='signup' %}
                         <a href="{{ url_for('join_team_form', sport=league['sport'], league_select=league['league_name']) }}"
                         class="btn btn-success w-100">Join a Team in This League</a>
                         {% endif %}
