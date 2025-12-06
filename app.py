@@ -309,6 +309,12 @@ def league_creation():
 
     if request.method == "POST":
         db = get_db()
+        names = db.execute('SELECT league_name FROM leagues').fetchall()
+        for name in names:
+            if name['league_name'] == request.form['league_name']:
+                flash("There is a league with that name already")
+                return redirect(url_for('league_creation'))
+
         db.execute("INSERT into leagues (league_name, sport, max_teams, league_admin) VALUES (?, ?, ?, ?)", [request.form["league_name"], request.form["sport"], request.form["max_teams"], activeuser['id']])
         db.commit()
 
@@ -324,12 +330,6 @@ def delete_league(league_id):
     if not session.get('logged_in'):
         flash('Please log in to access that page.')
         return redirect(url_for('login'))
-
-    # Admin check
-    activeuser = get_current_user()
-    if activeuser is None or activeuser['role'] != "admin":
-        flash("You do not have permission to do that.")
-        return redirect('/')
 
     db = get_db()
     # dummy check to make sure league exists and get status
@@ -736,10 +736,6 @@ def create_team():
     # Checks that a user is logged in
     if not session.get("logged_in"):
         return redirect('/login')
-    # Checks that a user is admin
-    elif activeuser is None or activeuser['role'] != "admin":
-        flash("You do not have permission to do that.")
-        return redirect('/')
 
     else:
         db = get_db()
@@ -765,6 +761,8 @@ def create_team():
             (league_id,)
         ).fetchone()[0]
 
+        print(max_teams)
+        print(teamCount)
         # Checks if max teams are in league and blocks joining if so
         if max_teams is not None and teamCount >= max_teams:
             flash("This league is already at its max number of teams.")
@@ -1195,7 +1193,7 @@ def del_team(league_id):
     db.execute("DELETE FROM teams WHERE id = ?", (team_id,))
     db.commit()
     flash(f'Team "{team_row["name"]}" deleted.')
-    return redirect(url_for('league_admin', league_id=league_id))
+    return redirect(url_for('league_manager', league_id=league_id))
 
 #helper for admin page
 def get_current_user():
@@ -1288,7 +1286,8 @@ def league_manager(league_id):
         'league_manager.html',
         league=league,
         teams=teams,
-        games=games
+        games=games,
+        user=activeuser
     )
 
 @app.route('/league/<int:league_id>/admin/remove_player', methods=['POST'])

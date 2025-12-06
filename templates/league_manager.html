@@ -65,7 +65,14 @@
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong>{{ team.name }}</strong>
+                {% if user['role'] == 'admin' %}
+                <form action="{{ url_for('del_team', league_id=league['id']) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this team?');">
+                    <input type="hidden" value="{{ team.id }}" name="team_id">
+                    <button type="submit" class="btn btn-danger mt-1">Delete Team</button>
+                </form>
+                {% endif %}
             </div>
+
             <div class="card-body">
                 <h6>Players</h6>
 
