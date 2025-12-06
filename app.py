@@ -133,7 +133,11 @@ def user_page():
 
     user_id = user['id']
 
-    managed_leagues = db.execute("SELECT id, league_name, sport, status FROM leagues WHERE admin=? OR league_admin=?", (user_id, user_id)).fetchall()
+    if get_current_user()['role'] == 'user':
+        managed_leagues = db.execute("SELECT id, league_name, sport, status FROM leagues WHERE league_admin=?", (user_id,)).fetchall()
+
+    else:
+        managed_leagues = db.execute("SELECT id, league_name, sport, status FROM leagues",).fetchall()
 
     teams = db.execute("SELECT DISTINCT leagues.id, leagues.league_name, leagues.sport, leagues.status FROM memberships "
                        "JOIN teams ON memberships.team_id = teams.id JOIN leagues ON teams.league_id = leagues.id "
