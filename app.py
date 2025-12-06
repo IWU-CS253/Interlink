@@ -165,7 +165,7 @@ def user_page():
 
     all_league = list(all_leagues.values())
 
-    teams = db.execute('SELECT teams.id, teams.name, leagues.id AS league_id, leagues.league_name, leagues.sport FROM memberships '
+    teams = db.execute('SELECT teams.id, teams.name, teams.team_manager, leagues.id AS league_id, leagues.league_name, leagues.sport FROM memberships '
                        'JOIN teams ON memberships.team_id=teams.id JOIN leagues ON teams.league_id=leagues.id WHERE '
                        'memberships.user_id=? ORDER BY leagues.league_name', [user_id]).fetchall()
 
@@ -688,7 +688,7 @@ def join_team_submit():
         flash("You are already a member of a team in this league!")
         return redirect("/join_team_form")
 
-    roster = get_roster(team_name)
+    roster = get_roster(team_name, "name")
     if len(roster) > 0:
         db.execute('INSERT INTO memberships (user_id, team_id, league_id) VALUES (?,?,?)', [user_id, team_id, league_id])
         db.commit()

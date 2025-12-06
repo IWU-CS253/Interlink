@@ -79,7 +79,7 @@
                        onmouseout="this.style.textDecoration='none';">
                         <h5 class="mb-0">{{ team.name }} - {{ team.league_name }} ({{ team.sport }})</h5>
                     </a>
-                    {% if session.get('logged_in') and session.get('username') == user.username %}
+                    {% if session.get('logged_in') and session.get('username') == user.username and user.id != team.team_manager %}
                     <form action="/leave_team" method="post">
                         <input type="hidden" name="team" value="{{ team.id }}">
                         <input type="hidden" name="user" value="{{ user.id }}">
