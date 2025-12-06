@@ -27,9 +27,11 @@
                 <li class="nav-item">
                     <a class="nav-link hover-effect" href="{{ url_for('submit_score') }}">Submit Score</a>
                 </li>
+                {% if session.get('role') == 'admin' %}
                 <li class="nav-item">
                     <a class="nav-link hover-effect" href="{{ url_for('whole_league_creation') }}">Whole League Creation</a>
                 </li>
+                {% endif %}
             </ul>
             <div class="ms-auto navbar navbar-expand-lg navbar-light bg-light px-3">
                 {% if session.get('logged_in') %}
