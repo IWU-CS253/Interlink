@@ -21,10 +21,21 @@ except ImportError:
 
 app = Flask(__name__)
 
+
+def get_client_cookies():
+    # Get client cookies
+    user_cookies = request.cookies.get('user_id')
+
+    # Fall back to IP if no cookies
+    if not user_cookies:
+        return get_remote_address()
+
+    return f'{user_cookies}:{request.endpoint}'
+
 # Creates flask_limiter extension
 limiter = Limiter(
-    get_remote_address,
     app=app,
+    key_func= get_client_cookies,
     default_limits=[]
 )
 
@@ -371,45 +382,54 @@ def generate_schedule(league_id):
         return redirect(url_for('home_page'))
 
     if request.method == 'POST':
+        played_games = db.execute(
+            'SELECT * FROM games WHERE league_id=? and home_score IS NOT NULL AND away_score IS NOT NULL',
+            [league_id]).fetchall()
+
+        if played_games:
+            flash('Cannot regenerate schedule, league is already in progress')
+            return redirect(url_for('match_schedule', league_id=league_id))
+        if league['status'] == "signup":
+            flash('League is not ready yet')
+            return redirect(url_for('match_schedule', league_id=league_id))
 
         starting_date = request.form['start_date']
         games_week = int(request.form.get('games_per_week'))
-        clear_unplayed = request.form.get('clear_existing')
 
-        if clear_unplayed == 'on':
-            games = db.execute('SELECT * FROM games WHERE league_id=? and home_score IS NULL AND away_score IS NULL',
-                               [league_id]).fetchall()
+        games = db.execute(
+            'SELECT * FROM games WHERE league_id=? and home_score IS NULL AND away_score IS NULL',
+            [league_id]).fetchall()
 
-            # Delete from Google Calendar if available
-            if GOOGLE_CALENDAR_AVAILABLE:
-                service = get_calendar_service()
-                if service:
-                    # Look up each games calendar event ID from the sync table
-                    for game in games:
-                        synced_record = db.execute(
-                            'SELECT calendar_event_id FROM calendar_synced_games WHERE game_id = ?',
-                            [game['id']]
-                        ).fetchone()
+        # Delete from Google Calendar if available
+        if GOOGLE_CALENDAR_AVAILABLE:
+            service = get_calendar_service()
+            if service:
+                # Look up each games calendar event ID from the sync table
+                for game in games:
+                    synced_record = db.execute(
+                        'SELECT calendar_event_id FROM calendar_synced_games WHERE game_id = ?',
+                        [game['id']]
+                    ).fetchone()
 
-                        if synced_record:
-                                # Delete the event using the stored event ID if games are found
-                                try:
-                                    service.events().delete(
-                                        calendarId=PUBLIC_CALENDAR_ID,
-                                        eventId=synced_record['calendar_event_id']
-                                    ).execute()
-                                # Error handling for if a game was already deleted
-                                except googleapiclient.errors.HttpError as e:
-                                    if e.resp.status == 410:  # Resource already deleted
-                                        print(f"Calendar event {game['calendar_event_id']} already deleted")
-                                        pass
-                                # Remove from synced games table
-                                db.execute('DELETE FROM calendar_synced_games WHERE game_id = ?', [game['id']])
+                    if synced_record:
+                            # Delete the event using the stored event ID if games are found
+                            try:
+                                service.events().delete(
+                                    calendarId=PUBLIC_CALENDAR_ID,
+                                    eventId=synced_record['calendar_event_id']
+                                ).execute()
+                            # Error handling for if a game was already deleted
+                            except googleapiclient.errors.HttpError as e:
+                                if e.resp.status == 410:  # Resource already deleted
+                                    print(f"Calendar event {game['calendar_event_id']} already deleted")
+                                    pass
+                            # Remove from synced games table
+                            db.execute('DELETE FROM calendar_synced_games WHERE game_id = ?', [game['id']])
 
-            # Remove the unplayed games from the games table
-            db.execute('DELETE FROM games WHERE league_id=? AND home_score IS NULL AND away_score IS NULL', [league_id])
-            db.commit()
-            flash('Games successfully cleared!')
+        # Remove the unplayed games from the games table
+        db.execute('DELETE FROM games WHERE league_id=? AND home_score IS NULL AND away_score IS NULL', [league_id])
+        db.commit()
+        flash('Games successfully cleared!')
 
 
         pairings = []
@@ -418,6 +438,9 @@ def generate_schedule(league_id):
                 pairings.append((teams[i]['id'], teams[j]['id']))
                 pairings.append((teams[j]['id'], teams[i]['id']))
         random.shuffle(pairings)
+
+        current_date = datetime.strptime(starting_date, '%Y-%m-%d')
+        current_game_count = 0
 
         start_date = starting_date.split('-')
         year = int(start_date[0])
@@ -626,7 +649,7 @@ def create_team():
             return redirect(url_for('team_creation'))
 
         # Gets the league as well as its id and max number of teams
-        league = db.execute("SELECT id, max_teams FROM leagues WHERE league_name=?", [request.form["league"]])
+        league = db.execute("SELECT id, max_teams, status FROM leagues WHERE league_name=?", [request.form["league"]])
         league_row = league.fetchone()
         league_id = league_row["id"]
         max_teams = league_row["max_teams"]
@@ -638,21 +661,30 @@ def create_team():
             (league_id,)
         ).fetchone()[0]
 
+        # Checks if max teams are in league and blocks joining if so
         if max_teams is not None and teamCount >= max_teams:
             flash("This league is already at its max number of teams.")
             return redirect(url_for('team_creation'))
+
+        # Gets all teams in the league
         existing_team = db.execute(
             "SELECT 1 FROM teams WHERE league_id = ? AND name = ?",
             (league_id, team_name)
         ).fetchone()
 
+        # Checks if there is a team with same name and blocks joining if so
         if existing_team:
             flash("A team with that name already exists in this league.")
             return redirect(url_for('team_creation'))
 
+        # Prevents joining a league if the league is active
+        if league_row['status'] == 'active':
+            flash("Selected league is already active")
+            return redirect(url_for('team_creation'))
+
         # Inserts new team into table
         db.execute("INSERT INTO teams (name, team_manager, league_id) VALUES (?,?, ?)",
-                   [request.form["name"], request.form["manager"], league_id])
+                   [request.form["name"], activeuser['id'], league_id])
         db.commit()
 
         flash("Team created successfully")
@@ -1091,7 +1123,7 @@ def create_game_event(game):
     # Creates the event
     event = {
         'summary': f"{game['home_team']} vs {game['away_team']}", # Makes the Title
-        'description': f"League: {game['league_name']}\nSport: {game['sport']}\nScore: {game['home_score']} - {game['away_score']}\n\nHome Team: {game['home_team']}\nAway Team: {game['away_team']}",
+        'description': f"League: {game['league_name']}\nSport: {game['sport']}\n\nHome Team: {game['home_team']}\nAway Team: {game['away_team']}",
         'start': {
             'dateTime': start_datetime,
             'timeZone': 'America/Chicago'
