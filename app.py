@@ -231,14 +231,9 @@ def league_creation():
         flash("Please log in to access that page.")
         return redirect(url_for('login'))
 
-    # Admin check
-    activeuser = get_current_user()
-    if activeuser is None or activeuser['role'] != "admin":
-        flash("You do not have permission to do that.")
-        return redirect('/')
     if request.method == "POST":
         db = get_db()
-        db.execute("INSERT into leagues (league_name, sport, max_teams) VALUES (?, ?, ?)", [request.form["league_name"], request.form["sport"], request.form["max_teams"]])
+        db.execute("INSERT into leagues (league_name, sport, max_teams, league_admin) VALUES (?, ?, ?, ?)", [request.form["league_name"], request.form["sport"], request.form["max_teams"], activeuser['id']])
         db.commit()
 
         flash("League created successfully.")
@@ -382,7 +377,7 @@ def match_schedule(league_id):
 
 @app.route('/league/<int:league_id>/generate-schedule', methods=['GET', 'POST'])
 def generate_schedule(league_id):
-    # admin check
+    # admin and logged in check
     if not session.get('logged_in'):
         flash("Please log in to access that page.")
         return redirect(url_for('login'))
@@ -508,6 +503,11 @@ def generate_schedule(league_id):
                            existing_games=existing_games)
 @app.route('/team-creation')
 def team_creation():
+    # Check logged in
+    if not session.get('logged_in'):
+        flash("Please log in to access that page.")
+        return redirect(url_for('login'))
+
     db = get_db()
     # Gets all the league names for the creation choices
     league = db.execute("SELECT league_name FROM leagues")
@@ -575,8 +575,17 @@ def join_team_submit():
         flash("You are already a member of a team in this league!")
         return redirect("/join_team_form")
 
-    db.execute('INSERT INTO memberships (user_id, team_id, league_id) VALUES (?,?,?)', [user_id, team_id, league_id])
-    db.commit()
+    roster = get_roster(team_name)
+    if len(roster) > 0:
+        db.execute('INSERT INTO memberships (user_id, team_id, league_id) VALUES (?,?,?)', [user_id, team_id, league_id])
+        db.commit()
+    elif len(roster) == 0:
+        db.execute('INSERT INTO memberships (user_id, team_id, league_id) VALUES (?,?,?)',
+                   [user_id, team_id, league_id])
+        db.commit()
+        db.execute("UPDATE teams SET team_manager = ? WHERE id = ?", [user_id, team_id])
+        db.commit()
+
     flash("Joined The Team!")
     return redirect("/join_team_form")
 
@@ -703,7 +712,12 @@ def create_team():
 
         # Inserts new team into table
         db.execute("INSERT INTO teams (name, team_manager, league_id) VALUES (?,?, ?)",
-                   [request.form["name"], activeuser['id'], league_id])
+                   [team_name, activeuser['id'], league_id])
+        db.commit()
+
+        # Automatically adds the user that created the team to the team
+        team_id = db.execute("SELECT id FROM teams WHERE name=?", (team_name,)).fetchone()[0]
+        db.execute("INSERT INTO memberships (user_id, team_id, league_id) VALUES (?,?,?)", [activeuser['id'], team_id, league_id])
         db.commit()
 
         flash("Team created successfully")
@@ -1241,8 +1255,6 @@ def sync_games_to_calendar():
     for game in games:
         if game['id'] not in synced_game_ids:
             new_games.append(game)
-        elif game['id'] in synced_game_ids:
-            continue
 
     # Ends the process if no new games
     if len(new_games) == 0:
@@ -1250,6 +1262,15 @@ def sync_games_to_calendar():
 
     # Loops through the new games creating events and adding them to the calendar
     for game in new_games:
+
+        already_synced = db.execute(
+            'SELECT game_id FROM calendar_synced_games WHERE game_id = ?',
+            [game['id']]
+        ).fetchone()
+
+        if already_synced:
+            continue  # Skip if already synced
+
         event = create_game_event(game)
         # Insert new event
         created_event = service.events().insert(
@@ -1384,12 +1405,11 @@ def whole_league_creation():
 
             #Team manager defaults to current user
             current_user = get_current_user()
-            default_manager = current_user['username']
 
             for name in separatedTeamNames:
                 db.execute(
-                    "INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)",
-                    (name, default_manager, league_id)
+                    "INSERT INTO teams (name, league_id) VALUES (?, ?)",
+                    (name, league_id)
                 )
 
             db.commit()
