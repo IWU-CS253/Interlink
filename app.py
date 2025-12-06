@@ -619,6 +619,11 @@ def team_creation():
 
 @app.route('/join_team_form')
 def join_team_form():
+    # Check that user is logged in
+    if not session.get('logged_in'):
+        flash('Please log in to access that page.')
+        return redirect(url_for('login'))
+
     sport_selected = request.args.get('sport')
     league_selected = request.args.get('league_select', None)
     db = get_db()
@@ -1613,7 +1618,7 @@ def whole_league_creation():
 
             db = get_db()
             leagues_rows = db.execute('SELECT league_name FROM leagues').fetchall()
-            leagues = [row['leagues'] for row in leagues_rows]
+            leagues = [row['league_name'] for row in leagues_rows]
             for name in leagues:
                 if league_name == name:
                     error = "League name already taken"
@@ -1658,16 +1663,29 @@ def whole_league_creation():
                     team_names=rawTeamNames
                 )
             db = get_db()
+            username = (request.form.get('league_admin') or '').strip()
 
+            # Find the user by username
+            user_row = get_user_by_username(username)
+
+            if user_row is None:
+                flash(f'User "{username}" not found.')
+                return render_template(
+                    "whole_league_creation.html",
+                    step=2,
+                    league_name=league_name,
+                    sport=sport,
+                    max_teams=maxteams,
+                    team_names=rawTeamNames
+                )
+
+            user_id = user_row['id']
             # Insert league (column is max_teams per your other routes)
             cur = db.execute(
-                "INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)",
-                (league_name, sport, maxteams)
+                "INSERT INTO leagues (league_name, sport, max_teams, league_admin) VALUES (?, ?, ?, ?)",
+                (league_name, sport, maxteams, user_id)
             )
             league_id = cur.lastrowid
-
-            #Team manager defaults to current user
-            current_user = get_current_user()
 
             for name in separatedTeamNames:
                 db.execute(
