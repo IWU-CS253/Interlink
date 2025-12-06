@@ -160,6 +160,22 @@ def user_page():
 
     return render_template('user_page.html', username=username, user=user, teams=teams,
                            games_in_league=games_in_league, managed_leagues=managed_leagues)
+
+@app.route('/leave_team', methods=["POST"])
+def leave_team():
+    # Get ids and team name
+    user_id = request.form.get('user')
+    team_id = request.form.get('team')
+    team_name = request.form.get('team_name')
+
+    # Remove player from the team in the membership table
+    db = get_db()
+    db.execute("DELETE FROM memberships WHERE user_id = ? AND team_id = ?", [user_id, team_id])
+    db.commit()
+
+    flash(f"You have left {team_name}.")
+    return redirect(url_for('user_page'))
+
 @app.route('/team_view', methods=["GET"])
 def team_view():
     team_name= request.args.get("team_name")
