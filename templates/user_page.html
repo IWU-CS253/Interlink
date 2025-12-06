@@ -36,13 +36,17 @@
                         <h5 class="mb-0">{{ team.name }} - {{ team.league_name }} ({{ team.sport }})</h5>
                     </a>
                     {% if session.get('logged_in') and session.get('username') == user.username %}
-                    <button class="btn btn-danger btn-sm"
-                            onclick="confirmLeaveTeam('{{ team.id }}', '{{ team.name }}')"
-                            style="transition: all 0.2s;"
-                            onmouseover="this.style.transform='scale(1.05)';"
-                            onmouseout="this.style.transform='';">
-                        Leave Team
-                    </button>
+                    <form action="/leave_team" method="post">
+                        <input type="hidden" name="team" value="{{ team.id }}">
+                        <input type="hidden" name="user" value="{{ user.id }}">
+                        <input type="hidden" name="team_name" value="{{ team.name }}">
+                        <button type="submit" class="btn btn-danger btn-sm"
+                                style="transition: all 0.2s;"
+                                onmouseover="this.style.transform='scale(1.05)';"
+                                onmouseout="this.style.transform='';">
+                            Leave Team
+                        </button>
+                    </form>
                     {% endif %}
                 </div>
                 <div class="card-body d-flex flex-column">
