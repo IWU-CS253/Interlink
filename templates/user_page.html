@@ -4,6 +4,12 @@
     <div class="row mb-4">
         <div class="col">
             <h1>User Profile</h1>
+            {% if managed_leagues %}
+                {% for league in managed_leagues %}
+                <a href="{{ url_for('league_manager', league_id=league['id']) }}"
+               class="btn btn-secondary">League Manager</a>
+                {% endfor %}
+            {% endif %}
         </div>
     </div>
     <div class="card-mb-4">

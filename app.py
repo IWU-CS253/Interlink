@@ -133,6 +133,8 @@ def user_page():
 
     user_id = user['id']
 
+    managed_leagues = db.execute("SELECT id, league_name FROM leagues WHERE admin=? OR league_admin=?", (user_id, user_id)).fetchall()
+
     teams = db.execute("SELECT teams.id, teams.name, leagues.id AS league_id, leagues.league_name, leagues.sport FROM "
                        "memberships JOIN teams ON memberships.team_id=teams.id JOIN leagues ON teams.league_id=leagues.id "
                        "WHERE memberships.user_id=? ORDER BY leagues.league_name", [user_id]).fetchall()
@@ -156,7 +158,8 @@ def user_page():
             if not any(g['id'] == game_tracker['id'] for g in games_in_league[league_identifier]['games']):
                 games_in_league[league_identifier]['games'].append(game_tracker)
 
-    return render_template('user_page.html', username=username, user=user, teams=teams, games_in_league=games_in_league)
+    return render_template('user_page.html', username=username, user=user, teams=teams,
+                           games_in_league=games_in_league, managed_leagues=managed_leagues)
 
 @app.route('/leave_team', methods=["POST"])
 def leave_team():
@@ -941,6 +944,50 @@ def league_page(league_id):
                            games=games,
                            sort_by=sort_by)
 
+@app.route('/league/<int:league_id>/league_manager')
+def league_manager(league_id):
+    if not session.get('logged_in'):
+        flash('Please log in to access this page.')
+        return redirect(url_for('login'))
+
+    activeuser = get_current_user()
+    if activeuser is None or activeuser['role'] != 'league_manager':
+        if activeuser['role'] != 'admin':
+            flash('You do not have permission to view this page.')
+            return redirect('/')
+
+    db = get_db()
+    league = db.execute("SELECT * FROM leagues WHERE id=?", (league_id,)).fetchone()
+    if league is None:
+        flash("League doesn't exist")
+        return redirect(url_for("home_page"))
+
+    team_rows = db.execute("SELECT id, name FROM teams WHERE league_id = ? ORDER BY name",(league_id,)).fetchall()
+
+    teams = []
+    for row in team_rows:
+        roster_names = get_roster(row['name'])
+        teams.append({
+            'id': row['id'],
+            'name': row['name'],
+            'roster': roster_names,
+        })
+
+    # get all games for the league, and break it up into different python variables so we can more easily use different parts of it to
+    # display easier in the admin panel
+    games = db.execute(
+        """ SELECT g.id, g.game_date, g.home_score, g.away_score, t1.name AS home_team, t2.name AS away_team
+            FROM games g JOIN teams t1 ON g.home_team_id = t1.id JOIN teams t2 ON g.away_team_id = t2.id
+                           WHERE g.league_id = ?
+                           ORDER BY g.game_date ASC
+                       """, (league_id,)).fetchall()
+
+    return render_template(
+        'league_manager.html',
+        league=league,
+        teams=teams,
+        games=games
+    )
 
 @app.route('/league/<int:league_id>/admin')
 def league_admin(league_id):
