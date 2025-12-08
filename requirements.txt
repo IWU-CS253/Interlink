@@ -7,5 +7,5 @@ google-api-core
 google-auth
 googleapis-common-protos
 flask_limiter
-pytest
-rich
+python-dotenv
+yagmail
