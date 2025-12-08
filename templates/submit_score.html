@@ -12,13 +12,16 @@
             <form action="/submit_score" method="get">
                 <select name="league_selected"  onchange="this.form.submit()" required>
                     <option value="">Select League</option>
+                    {# Loops through leagues to make options #}
                     {% for league in leagues %}
+                    {# If statement keeps option selected #}
                     <option value="{{ league.id }}" {% if league_selected|int == league.id %}selected{% endif %}>{{ league.league_name }}</option>
                     {% endfor %}
                 </select>
             </form>
             </dd>
             <form action="/submit_score" method="post">
+                {# Checks for league selection #}
                 {% if league_selected %}
                 <input type="hidden" name="league_selected" value="{{ league_selected }}">
                 {% endif %}
@@ -26,6 +29,7 @@
             <dd>
                 <select name="game_id" required>
                     <option value="">Select Game</option>
+                    {# Makes option for any unfinished game in selected league #}
                     {% for game in unfinished_games %}
                     <option value="{{ game.id }}">{{ game.game_date }} - {{ game.home_team }} vs {{ game.away_team }}</option>
                     {% endfor %}

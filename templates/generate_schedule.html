@@ -39,12 +39,6 @@
                 <option value="4">4 games per week</option>
             </select>
         </div>
-        {% if existing_games > 0 %}
-        <div class="mb-3">
-            <input type="checkbox" name="clear_existing" id="clear_existing">
-            <label for="clear_existing">Delete unplayed games before generating new games!</label>
-        </div>
-        {% endif %}
         <button type="submit" class="btn btn-primary">Generate Schedule</button>
         <a href="{{ url_for('league_page', league_id=league['id']) }}"
            class="btn btn-secondary">Cancel</a>
@@ -52,6 +46,7 @@
     <div class="mt-4">
         <h4>Teams:</h4>
         <ul>
+            {# Adds list items for the teams in the league #}
             {% for team in teams %}
             <li>{{ team['name'] }}</li>
             {% endfor %}

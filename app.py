@@ -1386,10 +1386,17 @@ def change_league_status():
     league_status = request.form['status']
     league_id = request.form['league_id']
     db = get_db()
-    if league_status=="signup":
+    # Get the number of teams in the league
+    num_teams = db.execute("SELECT COUNT(*) FROM teams WHERE league_id=?", (league_id,)).fetchone()[0]
+    # Checks what status should change to and if league has enough teams to activate
+    if league_status=="signup" and int(num_teams) >= 3:
         db.execute('UPDATE leagues SET status = "active" WHERE id=?',[league_id])
+    # Switches to signup
     elif league_status=="active":
         db.execute('UPDATE leagues SET status = "signup" WHERE id=?',[league_id])
+    # flashes if not enough teams
+    elif int(num_teams) < 3:
+        flash("League does not have enough teams")
     db.commit()
     return redirect(url_for('league_manager', league_id=league_id))
   

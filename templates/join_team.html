@@ -35,6 +35,7 @@
 <div class="m-3">
 <dt>Select Sport</dt>
 <form id="league_find" method="get" action="{{ url_for('join_team_form') }}" >
+        {# if statements keep sport selected #}
         <input type="radio" id="Volleyball" name="sport" value="Volleyball" {% if sport_selected == "Volleyball" %}checked{% endif %}>
         <label for="Volleyball">Volleyball</label><br>
 
@@ -58,9 +59,10 @@
     <dt class="mt-3">Select League</dt>
     <select style="width: 35%" class="form-select form-select-lg mb-3" name="league_select" onchange="this.form.submit()">
         <option disabled selected>Leagues</option>
-       {% for league in all_leagues %}
+        {# Loops through and makes an option leagues in selected sport #}
+        {% for league in all_leagues %}
            <option value="{{ league }}" class="dropdown-item" {% if league_selected == league %}selected{% endif %}>{{ league }}</option>
-       {% endfor %}
+        {% endfor %}
     </select>
 </form>
 <form action="/join_team_submit" method="post">
@@ -70,6 +72,7 @@
        <dt>Select Team</dt>
             <dd><select style="width: 35%" class="form-select form-select-lg mb-3"  name="team" required>
                 <option value="" disabled selected>Teams</option>
+                {# Loops through and makes an option teams in selected league #}
                 {% for team in teams %}
                     <option value="{{ team }}" class="dropdown-item" >{{ team }}</option>
                 {% endfor %}
