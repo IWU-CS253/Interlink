@@ -11,6 +11,7 @@
           <dd><input type="text" size="30" name="name" maxlength="35" minlength="3" pattern="^\S.*" required>
           <dt>League:
          <dd><select name="league">
+                {# Makes option for every league #}
                 {% for league in leagues %}
                     <option value="{{ league }}">{{ league }}</option>
                 {% endfor %}

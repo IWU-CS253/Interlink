@@ -4,6 +4,7 @@ import random
 import googleapiclient
 import yagmail
 import secrets
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, request, g, redirect, url_for, render_template, flash, session
@@ -19,7 +20,9 @@ try:
 except ImportError:
     GOOGLE_CALENDAR_AVAILABLE = False
 
+load_dotenv()
 app = Flask(__name__)
+
 
 
 def get_client_cookies():
@@ -41,17 +44,17 @@ limiter = Limiter(
 
 app.config.update(
     DATABASE=os.path.join(app.root_path, 'interlinkData.db'),
-    SECRET_KEY='testkey',  # use a strong secret in dev; env var in prod
+    SECRET_KEY=os.getenv('SECRET_KEY'),  # use a strong secret in dev; env var in prod
 )
+
+# Set up email and password from .env for sending verification emails
+EMAIL = os.getenv('EMAIL')
+PASSWORD = os.getenv('PASSWORD')
 
 # Google Calendar Configuration
 SCOPES = ['https://www.googleapis.com/auth/calendar']
-# Error handling for Unittests
-try:
-    SERVICE_ACCOUNT_FILE = 'interlink-478922-f6de685de9d5.json'
-except FileNotFoundError:
-    pass
-PUBLIC_CALENDAR_ID = '9fd94e2aa60aa8bbf719f5a47040a77c201c7a1571b950cf4f3109a9150cc447@group.calendar.google.com'
+SERVICE_ACCOUNT_FILE = os.getenv("SERVICE_ACCOUNT_FILE")
+PUBLIC_CALENDAR_ID = os.getenv('PUBLIC_CALENDAR_ID')
 
 def connect_db():
     """Connects to the specific database."""
@@ -165,7 +168,7 @@ def user_page():
 
     all_league = list(all_leagues.values())
 
-    teams = db.execute('SELECT teams.id, teams.name, leagues.id AS league_id, leagues.league_name, leagues.sport FROM memberships '
+    teams = db.execute('SELECT teams.id, teams.name, teams.team_manager, leagues.id AS league_id, leagues.league_name, leagues.sport FROM memberships '
                        'JOIN teams ON memberships.team_id=teams.id JOIN leagues ON teams.league_id=leagues.id WHERE '
                        'memberships.user_id=? ORDER BY leagues.league_name', [user_id]).fetchall()
 
@@ -221,7 +224,7 @@ def team_view():
     # Get the actual team from database to get the real team_manager ID
     team = db.execute("SELECT * FROM teams WHERE id = ?", [team_id]).fetchone()
 
-    roster = get_roster(team_name)
+    roster = get_roster(team_name, 'name')
     user = get_current_user()
 
     cur = db.execute("""SELECT games.id,
@@ -309,18 +312,24 @@ def leave_league(team_id):
     return redirect(url_for('home_page'))
 
 # Helper method to get a teams roster with only their team name
-def get_roster(team_name):
+def get_roster(team_name, type):
     db = get_db()
     # Finds a team id from the name
     team_id = db.execute('SELECT id FROM teams WHERE name=?', [team_name]).fetchone()[0]
     cur = db.execute("SELECT user_id FROM memberships WHERE team_id=?", [team_id])
     roster_ids = [row[0] for row in cur.fetchall()]
-    roster=[]
-    # Loops through player ids and gets their real name for display
-    for player_id in roster_ids:
-        cur=db.execute('SELECT name FROM users WHERE id=?',[player_id])
-        roster.append(cur.fetchone()[0])
+    roster = []
+    if type == 'object':
+        for player_id in roster_ids:
+            cur=db.execute('SELECT * FROM users where id=?', [player_id])
+            roster.append(cur.fetchone())
+    elif type == "name":
+        # Loops through player ids and gets their real name for display
+        for player_id in roster_ids:
+            cur=db.execute('SELECT name FROM users WHERE id=?',[player_id])
+            roster.append(cur.fetchone()[0])
     return roster
+
 
 
 @app.route('/league_creation', methods=["GET", "POST"])
@@ -375,8 +384,8 @@ def delete_league(league_id):
 
     # Only let leagues be deleted while league is in SignUp phase
     if league['status'] != "signup":
-        flash("Leagues can only be deleted while the league is in SignUp mode.")
-        return redirect(url_for('league_admin', league_id=league_id))
+        flash("Leagues can only be deleted while the league is in Sign Up phase.")
+        return redirect(url_for('league_manager', league_id=league_id))
 
     # Delete from Google Calendar if available
     if GOOGLE_CALENDAR_AVAILABLE:
@@ -488,10 +497,6 @@ def generate_schedule(league_id):
         flash("Please log in to access that page.")
         return redirect(url_for('login'))
 
-    activeuser = get_current_user()
-    if activeuser is None or activeuser['role'] != "admin":
-        flash("You do not have permission to do that.")
-        return redirect('/')
 
     db = get_db()
 
@@ -686,7 +691,7 @@ def join_team_submit():
         flash("You are already a member of a team in this league!")
         return redirect("/join_team_form")
 
-    roster = get_roster(team_name)
+    roster = get_roster(team_name, "name")
     if len(roster) > 0:
         db.execute('INSERT INTO memberships (user_id, team_id, league_id) VALUES (?,?,?)', [user_id, team_id, league_id])
         db.commit()
@@ -869,6 +874,7 @@ def get_user_by_username(username):
     db = get_db()
     cur = db.execute('SELECT id, username, password_hash, role FROM users WHERE username = ?', (username,))
     return cur.fetchone()
+
 @app.route('/signup', methods=["GET","POST"])
 def signup():
     error = None
@@ -904,29 +910,28 @@ def signup():
             error = 'That username is taken.'
         else:
             #Create user In DB
+            db = get_db()
+            existing_email = db.execute('SELECT id FROM users WHERE email=?', (email,)).fetchone()
+            if existing_email:
+                error = 'An account with this email already exists.'
+            else:
+                try:
+                    verification_token = secrets.token_urlsafe(32)
+                    db.execute(
+                        'INSERT INTO pending_registrations (username, email, name, password_hash, verification_token) VALUES (?, ?, ?, ?, ?)',
+                        (username, email, name, generate_password_hash(password), verification_token)
+                    )
+                    db.commit()
 
-                db = get_db()
-                existing_email = db.execute('SELECT id FROM users WHERE email=?', (email,)).fetchone()
-                if existing_email:
-                    error = 'An account with this email already exists.'
-                else:
-                    try:
-                        verification_token = secrets.token_urlsafe(32)
-                        db.execute(
-                            'INSERT INTO pending_registrations (username, email, name, password_hash, verification_token) VALUES (?, ?, ?, ?, ?)',
-                            (username, email, name, generate_password_hash(password), verification_token)
-                        )
-                        db.commit()
+                    pending_id = db.execute('SELECT id FROM pending_registrations WHERE username=?', (username,)).fetchone()[0]
 
-                        pending_id = db.execute('SELECT id FROM pending_registrations WHERE username=?', (username,)).fetchone()[0]
-
-                        email_sent = send_verification_email(email, username, verification_token, pending_id)
-                        if email_sent:
-                            flash('Verification email sent')
-                            return redirect("/")
-                    except Exception as e:
-                        error = 'That username is already taken.'
-                        print(f"Signup error: {e}")
+                    email_sent = send_verification_email(email, username, verification_token, pending_id)
+                    if email_sent:
+                        flash('Verification email sent')
+                        return redirect("/")
+                except Exception as e:
+                    error = 'That username is already taken.'
+                    print(f"Signup error: {e}")
 
     return render_template('signup.html', error=error, form_info=form_info)
 
@@ -1009,7 +1014,8 @@ def team_manager(team_id):
     league = db.execute("SELECT * FROM leagues WHERE id=?", (team['league_id'],)).fetchone()
 
     # Get roster
-    roster = get_roster(team['name'])
+    roster = get_roster(team['name'], 'object')
+    print(roster)
 
     # Get team's games
     games = db.execute("""
@@ -1205,13 +1211,13 @@ def del_team(league_id):
     #Only let teams be deleted while league is in SignUp phase
     if league['status'] != "signup":
         flash("Teams can only be deleted while the league is in SignUp mode.")
-        return redirect(url_for('league_admin', league_id=league_id))
+        return redirect(url_for('league_manager', league_id=league_id))
 
     team_id = request.form.get('team_id')
     #check team is real
     if not team_id or not team_id.isdigit():
         flash('Invalid team.')
-        return redirect(url_for('league_admin', league_id=league_id))
+        return redirect(url_for('league_manager', league_id=league_id))
     team_id = int(team_id)
     #make sure team belongs to this league
     team_row = db.execute(
@@ -1220,7 +1226,7 @@ def del_team(league_id):
     ).fetchone()
     if team_row is None:
         flash('Team not found in this league.')
-        return redirect(url_for('league_admin', league_id=league_id))
+        return redirect(url_for('league_manager', league_id=league_id))
 
     #Delete all memberships for that team
     db.execute("DELETE FROM memberships WHERE team_id = ?", (team_id,))
@@ -1301,7 +1307,7 @@ def league_manager(league_id):
 
     teams = []
     for row in team_rows:
-        roster_names = get_roster(row['name'])
+        roster_names = get_roster(row['name'], 'name')
         teams.append({
             'id': row['id'],
             'name': row['name'],
@@ -1343,7 +1349,7 @@ def remove_player(league_id):
     player_name = request.form.get('player_name')
     if not team_name or not player_name:
         flash('Bad request.')
-        return redirect(url_for('league_admin', league_id=league_id))
+        return redirect(url_for('league_manager', league_id=league_id))
     selectedTeam = db.execute(
         "SELECT id FROM teams WHERE name = ? AND league_id = ?",
         (team_name, league_id)
@@ -1351,7 +1357,7 @@ def remove_player(league_id):
 
     if selectedTeam is None:
         flash('Team not found.')
-        return redirect(url_for('league_admin', league_id=league_id))
+        return redirect(url_for('league_manager', league_id=league_id))
 
     team_id = selectedTeam['id']
 
@@ -1363,7 +1369,7 @@ def remove_player(league_id):
 
     if user_row is None:
         flash(f'Player "{player_name}" not found.')
-        return redirect(url_for('league_admin', league_id=league_id))
+        return redirect(url_for('league_manager', league_id=league_id))
 
     user_id = user_row['id']
 
@@ -1375,7 +1381,7 @@ def remove_player(league_id):
     db.commit()
 
     flash(f'Removed {player_name} from {team_name}.')
-    return redirect(url_for('league_admin', league_id=league_id))
+    return redirect(url_for('league_manager', league_id=league_id))
 
 
 @app.route('/change_phase', methods=["POST"])
@@ -1383,12 +1389,19 @@ def change_league_status():
     league_status = request.form['status']
     league_id = request.form['league_id']
     db = get_db()
-    if league_status=="signup":
+    # Get the number of teams in the league
+    num_teams = db.execute("SELECT COUNT(*) FROM teams WHERE league_id=?", (league_id,)).fetchone()[0]
+    # Checks what status should change to and if league has enough teams to activate
+    if league_status=="signup" and int(num_teams) >= 3:
         db.execute('UPDATE leagues SET status = "active" WHERE id=?',[league_id])
+    # Switches to signup
     elif league_status=="active":
         db.execute('UPDATE leagues SET status = "signup" WHERE id=?',[league_id])
+    # flashes if not enough teams
+    elif int(num_teams) < 3:
+        flash("League does not have enough teams")
     db.commit()
-    return redirect(url_for('league_admin', league_id=league_id))
+    return redirect(url_for('league_manager', league_id=league_id))
   
 @app.route('/edit_score', methods=['GET', 'POST'])
 def edit_score():
@@ -1766,7 +1779,7 @@ def send_verification_email(to_email, username, token, pending_id):
         """
 
         # Send email with yagmail
-        yag = yagmail.SMTP("interlinkfall25@gmail.com", "fbts pwrs bwge xmbm")
+        yag = yagmail.SMTP(EMAIL, PASSWORD)
         yag.send(
             to=to_email,
             subject=subject,

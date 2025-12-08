@@ -17,6 +17,7 @@
         <div class="m-3" style="display: flex; align-items: center; gap: 10px;">
             <select class="form-select form-select-lg w-25" name="filter">
                 <option disabled selected>Sport</option>
+                {# if statements keeps the filter selected #}
                 <option value="Volleyball" {% if filter == "Volleyball" %}selected{% endif %}>Volleyball</option>
                 <option value="Football" {% if filter == "Football" %}selected{% endif %}>Football</option>
                 <option value="Basketball" {% if filter == "Basketball" %}selected{% endif %}>Basketball</option>

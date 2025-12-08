@@ -5,8 +5,10 @@
     <a style="height: 50%" href="{{ url_for('home_page')}}" class="me-1 mt-3 btn btn-secondary">Back to League</a>
 </div>
 <div class="m-2">
+    {# Checks if still future games#}
     {% if future_games|length > 0 %}
     <h2 class="m-2">Scheduled Games</h2>
+    {# Loops and displays future games #}
     {% for game in future_games %}
     <div class="card mb-3 mx-2">
         <div class="card-body">
@@ -17,8 +19,10 @@
     {% endfor %}
     {% endif %}
 
+    {# Checks if finished games #}
     {% if finished_games|length > 0 %}
     <h2 class="m-2">Completed Games</h2>
+    {# Loops and displayed finished games #}
     {% for game in finished_games %}
     <div class="card mb-3 mx-2">
         <div class="card-body">
