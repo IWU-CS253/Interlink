@@ -6,6 +6,6 @@
 }
 
 .hover-effect:hover {
-  /* Scale the button up by 5% (1.05 times its original size) */
-  transform: scale(1.1); /* Changed from 2 to 1.05 for more subtle effect */
+    /* Scale the button up by 5% (1.05 times its original size) */
+    transform: scale(1.1); /* Changed from 2 to 1.05 for more subtle effect */
 }

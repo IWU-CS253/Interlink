@@ -4,6 +4,7 @@ import random
 import googleapiclient
 import yagmail
 import secrets
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, request, g, redirect, url_for, render_template, flash, session
@@ -19,7 +20,9 @@ try:
 except ImportError:
     GOOGLE_CALENDAR_AVAILABLE = False
 
+load_dotenv()
 app = Flask(__name__)
+
 
 
 def get_client_cookies():
@@ -41,17 +44,17 @@ limiter = Limiter(
 
 app.config.update(
     DATABASE=os.path.join(app.root_path, 'interlinkData.db'),
-    SECRET_KEY='testkey',  # use a strong secret in dev; env var in prod
+    SECRET_KEY=os.getenv('SECRET_KEY'),  # use a strong secret in dev; env var in prod
 )
+
+# Set up email and password from .env for sending verification emails
+EMAIL = os.getenv('EMAIL')
+PASSWORD = os.getenv('PASSWORD')
 
 # Google Calendar Configuration
 SCOPES = ['https://www.googleapis.com/auth/calendar']
-# Error handling for Unittests
-try:
-    SERVICE_ACCOUNT_FILE = 'interlink-478922-f6de685de9d5.json'
-except FileNotFoundError:
-    pass
-PUBLIC_CALENDAR_ID = '9fd94e2aa60aa8bbf719f5a47040a77c201c7a1571b950cf4f3109a9150cc447@group.calendar.google.com'
+SERVICE_ACCOUNT_FILE = os.getenv("SERVICE_ACCOUNT_FILE")
+PUBLIC_CALENDAR_ID = os.getenv('PUBLIC_CALENDAR_ID')
 
 def connect_db():
     """Connects to the specific database."""
@@ -1776,7 +1779,7 @@ def send_verification_email(to_email, username, token, pending_id):
         """
 
         # Send email with yagmail
-        yag = yagmail.SMTP("interlinkfall25@gmail.com", "fbts pwrs bwge xmbm")
+        yag = yagmail.SMTP(EMAIL, PASSWORD)
         yag.send(
             to=to_email,
             subject=subject,
