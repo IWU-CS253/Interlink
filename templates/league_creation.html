@@ -4,8 +4,8 @@
 <h1 class="m-3 mt-2">Create League</h1>
     <form action="/league_creation" method="post">
         <dl class="m-3">
-            <dt>League Name (Max Length 2-35 Characters) :</dt>
-            <dd><input type="text" size="30" maxlength="35" minlength="2" pattern="^\S.*" name="league_name" required></dd>
+            <dt><label for="league_name">League Name (Max Length 2-35 Characters) :</label></dt>
+            <dd><input id="league_name" type="text" size="30" maxlength="35" minlength="2" pattern="^\S.*" name="league_name" required></dd>
             <dt>Sport:</dt>
             <dd>
                 <select name="sport" required>
@@ -18,8 +18,8 @@
                     <option value="Badminton">Badminton</option>
                 </select>
             </dd>
-            <dt>Maximum Teams:</dt>
-            <dd><input type="number" size="30" min="3" max="32"  name="max_teams" required></dd>
+            <dt><label for="max_teams">Maximum Teams:</label></dt>
+            <dd><input id="max_teams" type="number" size="30" min="3" max="32"  name="max_teams" required></dd>
             <dd><input type="submit" value="Create" class="btn btn-secondary"></dd>
         </dl>
     </form>

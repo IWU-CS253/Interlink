@@ -25,9 +25,9 @@
                 {% if league_selected %}
                 <input type="hidden" name="league_selected" value="{{ league_selected }}">
                 {% endif %}
-            <dt>Select Game:</dt>
+                <dt><label for="game_id">Select Game:</label></dt>
             <dd>
-                <select name="game_id" required>
+                <select id="game_id"name="game_id" required>
                     <option value="">Select Game</option>
                     {# Makes option for any unfinished game in selected league #}
                     {% for game in unfinished_games %}
@@ -36,11 +36,11 @@
                 </select>
             </dd>
 
-            <dt>Home Score:</dt>
-            <dd><input type="number" name="home_score" max="200" min="0" required></dd>
+                <dt><label for="home_score">Home Score:</label></dt>
+            <dd><input id="home_score" type="number" name="home_score" max="200" min="0" required></dd>
 
-            <dt>Away Score:</dt>
-            <dd><input type="number" name="away_score" max="200" min="0" required></dd>
+                <dt><label for="away_score">Away Score:</label></dt>
+            <dd><input id="away_score" type="number" name="away_score" max="200" min="0" required></dd>
 
             <dd>
                 <input type="submit" value="Submit Score" class="btn btn-primary">
