@@ -15,16 +15,17 @@
     <h1 class="m-3 mt-2">Leagues</h1>
     <form action="{{ url_for('home_page') }}" method="get">
         <div class="m-3" style="display: flex; align-items: center; gap: 10px;">
-            <select class="form-select form-select-lg w-25" name="filter">
-                <option disabled selected>Sport</option>
-                {# if statements keeps the filter selected #}
-                <option value="Volleyball" {% if filter == "Volleyball" %}selected{% endif %}>Volleyball</option>
-                <option value="Football" {% if filter == "Football" %}selected{% endif %}>Football</option>
-                <option value="Basketball" {% if filter == "Basketball" %}selected{% endif %}>Basketball</option>
-                <option value="Soccer" {% if filter == "Soccer" %}selected{% endif %}>Soccer</option>
-                <option value="Water Polo" {% if filter == "Water Polo" %}selected{% endif %}>Water Polo</option>
-                <option value="Badminton" {% if filter == "Badminton" %}selected{% endif %}>Badminton</option>
-            </select>
+            <label for="sport-filter" hidden class=" form-label">Filter by Sport</label>
+                <select id="sport-filter" class="form-select form-select-lg w-25" name="filter">
+                    <option disabled selected>Sport</option>
+                    {# if statements keeps the filter selected #}
+                    <option value="Volleyball" {% if filter == "Volleyball" %}selected{% endif %}>Volleyball</option>
+                    <option value="Football" {% if filter == "Football" %}selected{% endif %}>Football</option>
+                    <option value="Basketball" {% if filter == "Basketball" %}selected{% endif %}>Basketball</option>
+                    <option value="Soccer" {% if filter == "Soccer" %}selected{% endif %}>Soccer</option>
+                    <option value="Water Polo" {% if filter == "Water Polo" %}selected{% endif %}>Water Polo</option>
+                    <option value="Badminton" {% if filter == "Badminton" %}selected{% endif %}>Badminton</option>
+                </select>
             <button type="submit" class="btn btn-secondary">Filter</button>
             <a href="{{ url_for('home_page') }}" class="btn btn-secondary">Reset</a>
         </div>

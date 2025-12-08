@@ -52,13 +52,14 @@
         {% set names = team_names or [] %}
         {% for i in range(max_teams) %}
             <div class="form-group mb-2">
-                <label>Team {{ i + 1 }}</label>
-                <input type="text" name="team_names[]" class="form-control" value="{% if i < names|length %}{{ names[i] }}{% endif %}" placeholder="Enter team name">
+                <label for="team_input_{{ i }}">Team {{ i + 1 }}</label>
+                <input id="team_input_{{ i }}" type="text" name="team_names[]" class="form-control" value="{% if i < names|length %}{{ names[i] }}{% endif %}" placeholder="Enter team name">
             </div>
         {% endfor %}
         <div>
-            <label>League Admin</label>
+            <label for="league_admin">League Admin</label>
             <input type="text"
+                   id="league_admin"
                name="league_admin"
                class="form-control form-control-sm"
                placeholder="League Admin Username"
