@@ -11,11 +11,15 @@ class InterlinkTestCase(unittest.TestCase):
         self.db_fd, interlink.app.config['DATABASE'] = tempfile.mkstemp()
         interlink.app.config['SECRET_KEY'] = 'key-for-testing'
         interlink.app.testing = True
+        self.original_calendar_available = interlink.GOOGLE_CALENDAR_AVAILABLE
+        interlink.GOOGLE_CALENDAR_AVAILABLE = False
         self.app = interlink.app.test_client()
         with interlink.app.app_context():
             interlink.init_db()
 
     def tearDown(self):
+        interlink.GOOGLE_CALENDAR_AVAILABLE = self.original_calendar_available
+
         os.close(self.db_fd)
         os.unlink(interlink.app.config['DATABASE'])
 
