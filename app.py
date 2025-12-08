@@ -1451,6 +1451,8 @@ def get_calendar_service():
     if not GOOGLE_CALENDAR_AVAILABLE:
         return None
 
+    if not SERVICE_ACCOUNT_FILE:
+        return None
     # Creates the credentials using the service account .json file
     credentials = service_account.Credentials.from_service_account_file(
         SERVICE_ACCOUNT_FILE, scopes=SCOPES)
