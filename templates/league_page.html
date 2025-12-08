@@ -1,96 +1,136 @@
 {% extends "layout.html" %}
 {% block body %}
-<div class="m-4">
-<!-- Admin button -->
-            <aside>
-                <div>
-                    {% if session.get('logged_in') %}
-                        {% if session.get('role') == 'admin' %}
-                            <a class="btn btn-secondary btn-sm float-end" href="{{ url_for('league_admin', league_id=league['id']) }}" >Admin Page</a>
+<div class="container-fluid py-4">
+<!-- LEAGUE MANAGER button -->
+            <div class="row mb-4">
+                <div class="col">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h1 class="mb-0">{{ league['league_name'] }}</h1>
+                        {% if league_manager %}
+                            <a class="btn btn-outline-secondary btn-sm float-end" href="{{ url_for('league_manager', league_id=league['id']) }}" >League Manager Page</a>
                         {% endif %}
-                    {% endif %}
+                    </div>
                 </div>
-            </aside>
-
-    <h1>{{ league['league_name'] }}</h1>
-
-
-    <div>
-        <div>
-
-            <p><strong>Sport:</strong> {{ league['sport'] }}</p>
-            <p><strong>Max Teams:</strong> {{ league['max_teams'] }}</p>
-            <p><strong>Status:</strong>
-                <span>
-                    {{ league['status']|upper }}
-                </span>
-            </p>
-        <div class="row">
-            <div class="col-md-4">
-                <p><strong>Teams:</strong></p>
-                <ul>
-                    {% for team in teams %}
-                    <li><a style="color: black" class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover" href="{{ url_for('team_view', team_name=team["name"], league_name=league["league_name"],
-                    team_manager=team["team_manager"], sport=league["sport"], league_status = league["status"], team_id = team['id']) }}">{{ team["name"] }}</a></li>
-                    {% endfor %}
-                </ul>
-                <a href="{{ url_for('join_team_form', sport=league['sport'], league_select=league['league_name']) }}"
-                class="btn btn-success" {% if league['status'] !='SignUp' %} hidden {% endif %}>Join a Team in This League</a>
             </div>
-            <div class="col-md-4">
-                <p><strong>Standings:</strong></p>
-                <div class="mb-2">
-                    <span>Sort by: </span>
-                    <a href="{{ url_for('league_page', league_id=league['id'], sort='wins') }}" class="btn btn-sm btn-primary">Wins</a>
-                    <a href="{{ url_for('league_page', league_id=league['id'], sort='name') }}" class="btn btn-sm btn-primary">Name</a>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <p><strong>Sport:</strong> {{ league['sport'] }}</p>
                 </div>
-                <div class="mb-2">
-                    {% if standings %}
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Team</th>
-                                <th>Wins</th>
-                                <th>Losses</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for team in standings %}
-                            <tr>
-                                <td>{{ team['team_name'] }}</td>
-                                <td>{{ team['wins'] }}</td>
-                                <td>{{ team['losses'] }}</td>
-                            </tr>
+                <div class="col-md-4">
+                    <p><strong>Max Teams:</strong> {{ league['max_teams'] }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p class="mb-2"><strong>Status:</strong>
+                    <span class="badge {% if league['status'] == 'SignUp' %}bg-success{% else %}bg-primary{% endif %}">
+                        {{ league['status']|upper }}
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Teams:</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush mb-3" style="max-height: 400px; overflow-y: auto;">
+                            {% for team in teams %}
+                            <li class="list-group-item px-0">
+                                <a href="{{ url_for('team_view', team_name=team['name'], league_name=league['league_name'], team_manager=team['team_manager'], sport=league['sport'], league_status=league['status'], team_id=team['id']) }}"
+                                class="text-decoration-none text-dark d-block py-2 px-2 rounded"
+                                style="transition: all 0.2s;"
+                                onmouseover="this.style.backgroundColor='#e7f1ff'; this.style.transform='translateX(5px)'; this.style.color='#0d6efd';"
+                                onmouseout="this.style.backgroundColor=''; this.style.transform=''; this.style.color='';">
+                                {{ team["name"] }}
+                                </a>
+                            </li>
                             {% endfor %}
-                        </tbody>
-                    </table>
+                        </ul>
+                        {% if league['status'] =='signup' %}
+                        <a href="{{ url_for('join_team_form', sport=league['sport'], league_select=league['league_name']) }}"
+                        class="btn btn-success w-100">Join a Team in This League</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Standings:</h5>
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <div class="btn-group mb-3 flex-shrink-0" role="group" aria-label="Sort options">
+                            <a href="{{ url_for('league_page', league_id=league['id'], sort='wins') }}" class="btn btn-sm btn-secondary">Sort by Wins</a>
+                            <a href="{{ url_for('league_page', league_id=league['id'], sort='name') }}" class="btn btn-sm btn-secondary">Sort by Name</a>
+                        </div>
+                        {# Checks if standings to display #}
+                        {% if standings %}
+                        <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Team</th>
+                                        <th class="text-center">Wins</th>
+                                        <th class="text-center">Losses</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {# Creates the display with team name, wins, and losses #}
+                                    {% for team in standings %}
+                                    <tr>
+                                        <td>{{ team['team_name'] }}</td>
+                                        <td class="text-center"><strong>{{ team['wins'] }}</strong></td>
+                                        <td class="text-center">{{ team['losses'] }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {# if no games have been played #}
+                        {% else %}
+                        <p>No games played yet.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Recent Games</h5>
+                    </div>
+                    <div class="card-body">
+                    {# Checks for recent games #}
+                    {% if games %}
+                    <ul class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
+                        {# Loops through and displays recently played games #}
+                        {% for game in games %}
+                        <li class="list-group-item px-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold">{{ game.home_team }}</span>
+                                <span class="badge bg-secondary">{{ game.home_score }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <span class="fw-bold">{{ game.away_team }}</span>
+                                <span class="badge bg-secondary">{{ game.away_score }}</span>
+                            </div>
+                            <small class="text-muted">{{ game.game_date }}</small>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {# If no games played #}
                     {% else %}
                     <p>No games played yet.</p>
                     {% endif %}
                 </div>
             </div>
-            <div class="col-md-4">
-                <p><strong>Recent Games:</strong></p>
-                {% if games %}
-                <ul>
-                    {% for game in games %}
-                    <li>
-                        {{ game.home_team }} vs {{ game.away_team }}: {{ game.home_score }} - {{ game.away_score }}
-                        ({{ game.game_date }})
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p>No games played yet.</p>
-                {% endif %}
-            </div>
-
         </div>
-            <form action="/change_phase" method="get">
-                <input type="hidden" name="status" value="{{ league["status"] }}">
-                <button type="submit">change</button>
-            </form>
-        </div>
+    </div>
     </div>
 </div>
 {% endblock %}

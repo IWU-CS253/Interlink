@@ -1,0 +1,11 @@
+.hover-effect {
+  /* Add a smooth transition for the transform property */
+  transition: transform 0.2s ease-in-out;
+  /* Ensure the button is treated as a block for correct scaling */
+  display: inline-block;
+}
+
+.hover-effect:hover {
+    /* Scale the button up by 5% (1.05 times its original size) */
+    transform: scale(1.1); /* Changed from 2 to 1.05 for more subtle effect */
+}

@@ -7,3 +7,6 @@ google-api-core
 google-auth
 googleapis-common-protos
 pytest
+flask_limiter
+python-dotenv
+yagmail

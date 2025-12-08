@@ -1,0 +1,243 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>User Profile</h1>
+        </div>
+    </div>
+    <div class="card-mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <p class="mb-2"><strong>Username:</strong> {{ user.username }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p class="mb-2"><strong>Name:</strong> {{ user.name }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p class="mb-2"><strong>Email:</strong> {{ user.email }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if all_league %}
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">League Menu</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for league in all_league %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ league.league_name }}</h6>
+                                    <p class="card-text mb-1">
+                                        <small class="text-muted">Sport: {{ league.sport }}</small>
+                                    </p>
+                                    <p class="card-text mb-1">
+                                        <small class="text-muted">Status:
+                                            <span class="badge {% if league.status == 'signup' %}bg-success{% else %}bg-primary{% endif %}">
+                                                {{ league.status|upper }}
+                                            </span>
+                                        </small>
+                                    </p>
+                                    <p class="card-text">
+                                        <small class="text-muted">Role: {{ league.role }}</small>
+                                    </p>
+                                    <a href="{{ url_for('league_page', league_id=league.id) }}"
+                                       class="btn btn-sm btn-outline-primary">View League</a>
+                                    {% if league.role == 'League Manager' %}
+                                    <a href="{{ url_for('league_manager', league_id=league.id) }}"
+                                       class="btn btn-sm btn-outline-secondary">Manage</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Checks if user in any teams #}
+    {% if teams %}
+    {% for team in teams %}
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('team_view', team_name=team.name, league_name=team.league_name, team_manager='', sport=team.sport, league_status='', team_id=team.id) }}"
+                       class="text-white text-decoration-none"
+                       style="transition: all 0.2s;"
+                       onmouseover="this.style.textDecoration='underline';"
+                       onmouseout="this.style.textDecoration='none';">
+                        <h5 class="mb-0">{{ team.name }} - {{ team.league_name }} ({{ team.sport }})</h5>
+                    </a>
+                    {# Checks to see if the user is logged in and if the user isn't the team manager #}
+                    {# if passes those conditions a button to leave team appears #}
+                    {% if session.get('logged_in') and session.get('username') == user.username and user.id != team.team_manager %}
+                    <form action="/leave_team" method="post">
+                        <input type="hidden" name="team" value="{{ team.id }}">
+                        <input type="hidden" name="user" value="{{ user.id }}">
+                        <input type="hidden" name="team_name" value="{{ team.name }}">
+                        <button type="submit" class="btn btn-danger btn-sm"
+                                style="transition: all 0.2s;"
+                                onmouseover="this.style.transform='scale(1.05)';"
+                                onmouseout="this.style.transform='';">
+                            Leave Team
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                <div class="card-body d-flex flex-column">
+                    {# Elle explain all this please #}
+                    {% set team_games = [] %}
+                    {% for league_identifier, league_data in games_in_league.items() %}
+                        {% if league_data.league_id == team.league_id %}
+                            {% for game in league_data.games %}
+                                {% if game.home_team == team.name or game.away_team == team.name %}
+                                    {% set _ = team_games.append(game) %}
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if team_games %}
+                    {% set scheduled_games = [] %}
+                    {% set finished_games = [] %}
+                    {% for game in team_games %}
+                        {% if game.home_score is none %}
+                            {% set _ = scheduled_games.append(game) %}
+                        {% else %}
+                            {% set _ = finished_games.append(game) %}
+                        {% endif %}
+                    {% endfor %}
+
+                    <div class="row g-3">
+                        <!-- Scheduled Matches Column -->
+                        <div class="col-md-6">
+                            <h6 class="mb-3 text-primary">Scheduled Matches</h6>
+                            {# Checks if there are scheduled games to show #}
+                            {% if scheduled_games %}
+                            <div style="max-height: 400px; overflow-y: auto;">
+                                {% for game in scheduled_games %}
+                                <div class="card border-warning mb-3">
+                                    <div class="card-body p-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            {# Styles the name to show user's team #}
+                                            <span class="{% if game.home_team == team.name %}fw-bold text-primary{% endif %}">
+                                                {{ game.home_team }}
+                                            </span>
+                                            <span class="badge bg-warning text-dark">TBD</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            {# Styles the name to show user's team #}
+                                            <span class="{% if game.away_team == team.name %}fw-bold text-primary{% endif %}">
+                                                {{ game.away_team }}
+                                            </span>
+                                            <span class="badge bg-warning text-dark">TBD</span>
+                                        </div>
+                                        <small class="text-muted">
+                                            {{ game.game_date }}
+                                        </small>
+                                        <div class="mt-2">
+                                            <span class="badge bg-info">Upcoming</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="text-muted">No upcoming matches.</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Finished Matches Column -->
+                        <div class="col-md-6">
+                            <h6 class="mb-3 text-success">Finished Matches</h6>
+                            {# Checks if user's teams have any finished games' #}
+                            {% if finished_games %}
+                            <div style="max-height: 400px; overflow-y: auto;">
+                                {% for game in finished_games %}
+                                <div class="card border-secondary mb-3">
+                                    <div class="card-body p-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            {# Styles the name to show if user's team#}
+                                            <span class="{% if game.home_team == team.name %}fw-bold text-primary{% endif %}">
+                                                {{ game.home_team }}
+                                            </span>
+                                            {# Styles the score to show win or loss #}
+                                            <span class="badge {% if game.home_score > game.away_score %}bg-success{% elif game.home_score < game.away_score %}bg-danger{% else %}bg-secondary{% endif %}">
+                                                {{ game.home_score }}
+                                            </span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            {# Styles the name to show if user's team' #}
+                                            <span class="{% if game.away_team == team.name %}fw-bold text-primary{% endif %}">
+                                                {{ game.away_team }}
+                                            </span>
+                                            {#  Styles the score to show win or loss #}
+                                            <span class="badge {% if game.away_score > game.home_score %}bg-success{% elif game.away_score < game.home_score %}bg-danger{% else %}bg-secondary{% endif %}">
+                                                {{ game.away_score }}
+                                            </span>
+                                        </div>
+                                        <small class="text-muted">
+                                            {{ game.game_date }}
+                                        </small>
+                                        {# Checks which team is user's and whether to display won, lost, or tie'#}
+                                        {% if game.home_team == team.name %}
+                                            {% if game.home_score > game.away_score %}
+                                                <div class="mt-2"><span class="badge bg-success">Won</span></div>
+                                            {% elif game.home_score < game.away_score %}
+                                                <div class="mt-2"><span class="badge bg-danger">Lost</span></div>
+                                            {% else %}
+                                                <div class="mt-2"><span class="badge bg-secondary">Tie</span></div>
+                                            {% endif %}
+                                        {% else %}
+                                            {% if game.away_score > game.home_score %}
+                                                <div class="mt-2"><span class="badge bg-success">Won</span></div>
+                                            {% elif game.away_score < game.home_score %}
+                                                <div class="mt-2"><span class="badge bg-danger">Lost</span></div>
+                                            {% else %}
+                                                <div class="mt-2"><span class="badge bg-secondary">Tie</span></div>
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {# If haven't played games #}
+                            {% else %}
+                            <p class="text-muted">No finished matches yet.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {# If they have no scheduled matches #}
+                    {% else %}
+                    <p class="text-muted mb-0">No scheduled matches yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {# If not on any team #}
+    {% else %}
+    <div class="row">
+        <div class="col">
+            <div class="alert alert-info">
+                <strong>Not on any teams yet!</strong> Join a team to start playing.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

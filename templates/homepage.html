@@ -1,40 +1,60 @@
 {% extends "layout.html" %}
 {% block body %}
-    <h1 class="m-2">Leagues</h1>
+    <style>
+        .responsive-calendar{
+            width: 100%;
+        }
+        .calendar-div{
+            width:99%;
+        }
+        body {
+            overflow-x: hidden;
+        }
+    </style>
+
+    <h1 class="m-3 mt-2">Leagues</h1>
     <form action="{{ url_for('home_page') }}" method="get">
-        <div class="m-2" style="display: flex; align-items: center; gap: 10px;">
+        <div class="m-3" style="display: flex; align-items: center; gap: 10px;">
             <select class="form-select form-select-lg w-25" name="filter">
                 <option disabled selected>Sport</option>
-                <option value="Volleyball">Volleyball</option>
-                <option value="Football">Football</option>
-                <option value="Basketball">Basketball</option>
-                <option value="Soccer">Soccer</option>
-                <option value="Water Polo">Water Polo</option>
-                <option value="Badminton">Badminton</option>
+                {# if statements keeps the filter selected #}
+                <option value="Volleyball" {% if filter == "Volleyball" %}selected{% endif %}>Volleyball</option>
+                <option value="Football" {% if filter == "Football" %}selected{% endif %}>Football</option>
+                <option value="Basketball" {% if filter == "Basketball" %}selected{% endif %}>Basketball</option>
+                <option value="Soccer" {% if filter == "Soccer" %}selected{% endif %}>Soccer</option>
+                <option value="Water Polo" {% if filter == "Water Polo" %}selected{% endif %}>Water Polo</option>
+                <option value="Badminton" {% if filter == "Badminton" %}selected{% endif %}>Badminton</option>
             </select>
             <button type="submit" class="btn btn-secondary">Filter</button>
             <a href="{{ url_for('home_page') }}" class="btn btn-secondary">Reset</a>
         </div>
     </form>
-    {% for league in leagues %}
-        <div class="card mb-3 mx-2">
-            <div class="card-body">
-                <h5>{{ league['league_name'] }}</h5>
-                <p>Sport: {{ league['sport'] }}</p>
-                <p>Status: {{ league['status'] }}</p>
-                <a href="{{ url_for('league_page', league_id=league['id']) }}"
-                   class="btn btn-primary">View League Details</a>
-                <a href = "{{ url_for('match_schedule', league_id=league['id']) }}"
-                   class ="btn btn-success">View Match Schedule</a>
+    <div class=".container">
+        <div class="row">
+            <div style="max-height: 600px" class="col-lg-6 overflow-auto">
+                {% for league in leagues %}
+                    <div class="card mb-3 mx-2">
+                        <div class="card-body">
+                            <h5>{{ league['league_name'] }}</h5>
+                            <p>Sport: {{ league['sport'] }}</p>
+                            <p>Status: {{ league['status'] }}</p>
+                            <a href="{{ url_for('league_page', league_id=league['id']) }}"
+                               class="btn btn-primary">View League Details</a>
+                            <a href = "{{ url_for('match_schedule', league_id=league['id']) }}"
+                               class ="btn btn-success">View Match Schedule</a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="col-lg-6">
+                <!-- Google Calendar Card -->
+                <div class="card calendar-div">
+                    <div class="card-body p-2">
+                        <h5 class="card-title">Upcoming Games</h5>
+                        <iframe class="responsive-calendar" src="https://calendar.google.com/calendar/embed?src=9fd94e2aa60aa8bbf719f5a47040a77c201c7a1571b950cf4f3109a9150cc447%40group.calendar.google.com&ctz=America%2FChicago" style="border: 0" height="600" frameborder="0" scrolling="no"></iframe>
+                    </div>
+                </div>
             </div>
         </div>
-        {% endfor %}
-        <!-- Google Calendar Card -->
-        <div class="card mb-3 mx-2">
-            <h1 class="m-2">Today's Games</h1>
-            <iframe style="width:100%; height: 500px;"
-                src="https://calendar.google.com/calendar/embed?src=primary&ctz=America/Chicago&mode=AGENDA"
-                style="border: 0">
-            </iframe>
-        </div>
+    </div>
 {% endblock %}

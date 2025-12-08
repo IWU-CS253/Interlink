@@ -4,6 +4,7 @@
 
     <h1 class="mb-4 text-center">Login</h1>
 
+    {# Checks for an error and displays it #}
     {% if error %}
       <div class="alert alert-danger">
         <strong>Error:</strong> {{ error }}
@@ -14,7 +15,7 @@
 
       <div class="form-group mb-3">
         <label for="username">Username</label>
-        <input class="form-control" id="username" type="text" name="username" required>
+        <input class="form-control" id="username" value ="{{ username }}" type="text" name="username" required>
       </div>
 
       <div class="form-group mb-4">

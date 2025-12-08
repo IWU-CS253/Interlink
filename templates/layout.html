@@ -4,55 +4,72 @@
         <title>Interlink</title>
        <!--bootstrap css--->
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+        <link rel="stylesheet" href="../static/style.css">
     </head>
     <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light px-3">
-        <a class="navbar-brand" href="{{ url_for('home_page') }}">InterLink</a>
+        <a class="navbar-brand hover-effect" href="{{ url_for('home_page') }}">InterLink</a>
     
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <button class="navbar-toggler hover-effect" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse w-100" id="navbarNav">
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('team_creation') }}">Create Team</a>
+                    <a class="nav-link hover-effect" href="{{ url_for('team_creation') }}">Create Team</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('league_creation') }}">Create League</a>
+                    <a class="nav-link hover-effect" href="{{ url_for('league_creation') }}">Create League</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('join_team_form') }}">Join Team</a>
+                    <a class="nav-link hover-effect" href="{{ url_for('join_team_form') }}">Join Team</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('submit_score') }}">Submit Score</a>
+                    <a class="nav-link hover-effect" href="{{ url_for('submit_score') }}">Submit Score</a>
                 </li>
+                {# Checks if user is an admin, if so displays the whole league create function #}
+                {% if session.get('role') == 'admin' %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('whole_league_creation') }}">Whole League Creation</a>
+                    <a class="nav-link hover-effect" href="{{ url_for('whole_league_creation') }}">Whole League Creation</a>
                 </li>
+                {% endif %}
             </ul>
             <div class="ms-auto navbar navbar-expand-lg navbar-light bg-light px-3">
+                {# Checks if the user is logged to display user only information #}
                 {% if session.get('logged_in') %}
                     <span class="navbar-text me-3">
                         Logged in as <strong>{{ session['username'] }}</strong>
+                        {# Checks if is an admin and displays admin badge #}
                         {% if session.get('role') == 'admin' %}
                             <span class="badge bg-danger ms-2">Admin</span>
                         {% endif %}
                     </span>
 
-                    <a class="btn btn-outline-danger btn-sm float-end" href="{{ url_for('logout') }}" >Logout</a>
+                    <a class="btn btn-outline-danger btn-sm float-end me-1" href="{{ url_for('logout') }}" >Logout</a>
+                    <a class="btn btn-outline-secondary btn-sm float-end" href="{{ url_for('user_page') }}">Profile</a>
+                {# If not logged in, have a login button #}
                 {% else %}
                     <a class="btn btn-outline-primary btn-sm float-end" href="{{ url_for('login') }}">Login</a>
                 {% endif %}
             </div>
         </div>
     </nav>
-
        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+        {# Checks for flash messages to display #}
         {% for message in get_flashed_messages() %}
         <div class="alert">{{ message }}</div>
         {% endfor %}
+        {# Sets up templating for other pages #}
         {% block body %}
 
         {% endblock %}
     </body>
+    <footer class="bg-light text-center py-4 mt-5">
+        <div class="container">
+            <h5 class="mb-3">InterLink</h5>
+            <p class="mb-2">Your Ultimate Sports League Management Platform</p>
+            <p class="small mb-0">© 2025 InterLink</p>
+        </div>
+    </footer>
 </html>

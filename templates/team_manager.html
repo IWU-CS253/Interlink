@@ -1,0 +1,151 @@
+{% extends 'layout.html' %}
+{% block body %}
+<div class="container mt-4">
+    <h1>Team Manager: {{ team['name'] }}</h1>
+    <p class="text-muted">
+        Manage your team in {{ league['league_name'] }} ({{ league['sport'] }})
+    </p>
+
+    <div class="d-flex mb-3">
+        <a class="btn btn-secondary btn-sm me-2"
+           href="{{ url_for('team_view', team_name=team['name'], league_name=league['league_name'],
+                  team_manager=team['team_manager'], sport=league['sport'],
+                  league_status=league['status'], team_id=team['id']) }}">
+            ← Back to Team Page
+        </a>
+    </div>
+    <!-- Team Roster Management -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Team Roster</h5>
+        </div>
+        <div class="card-body">
+            {# Checks if team has a roster #}
+            {% if roster %}
+                <ul class="list-group mb-3">
+                    {# Loops and displays every player #}
+                    {% for player in roster %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>{{ player['name'] }}</span>
+                            {# Checks if league is still in signup and gives option to remove player #}
+                            {% if league['status'] == 'signup' %}
+                            <form method="post"
+                                  action="{{ url_for('team_manager_remove_player', team_id=team['id']) }}"
+                                  class="m-0"
+                                  onsubmit="return confirm('Remove {{ player_name }} from the team?');">
+                                <input type="hidden" name="player_name" value="{{ player['name'] }}">
+                                {# If player is the manager hide option to remove #}
+                                {% if player['id'] !=  team['team_manager'] %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    Remove
+                                </button>
+                                {% endif %}
+                            </form>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {# If no roster #}
+            {% else %}
+                <p>No players on this team yet</p>
+            {% endif %}
+
+            {# Checks if league is in signup and displays add player form #}
+            {% if league['status'] == 'signup' %}
+            <!-- Add Player Form -->
+            <div class="mt-3">
+                <h6>Add Player to Team</h6>
+                <form method="post" action="{{ url_for('team_manager_add_player', team_id=team['id']) }}" class="row g-2">
+                    <div class="col-auto">
+                        <input type="text"
+                               name="username"
+                               class="form-control form-control-sm"
+                               placeholder="Username"
+                               required>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-sm btn-success">
+                            Add Player
+                        </button>
+                    </div>
+                </form>
+            </div>
+            {# If active hide form #}
+            {% else %}
+                <p class="text-muted mt-3">
+                    <small>League is active. Roster changes are locked.</small>
+                </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Upcoming Games -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Upcoming Games</h5>
+        </div>
+        <div class="card-body">
+            {# Checks for upcoming games #}
+            {% if upcoming_games %}
+                <ul class="list-group">
+                    {# Displays upcoming games #}
+                    {% for game in upcoming_games %}
+                        <li class="list-group-item">
+                            <strong>{{ game['home_team'] }}</strong> vs <strong>{{ game['away_team'] }}</strong>
+                            <br>
+                            <small class="text-muted">{{ game['game_date'] }}</small>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {# If no games #}
+            {% else %}
+                <p>No upcoming games scheduled.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Game History -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Game History</h5>
+        </div>
+        <div class="card-body">
+            {# Checks for finished games #}
+            {% if finished_games %}
+                <div style="max-height: 400px;" class="overflow-auto">
+                    <ul class="list-group">
+                        {# Displays each finished game #}
+                        {% for game in finished_games %}
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between">
+                                    <span>
+                                        <strong>{{ game['home_team'] }}</strong> {{ game['home_score'] }} -
+                                        {{ game['away_score'] }} <strong>{{ game['away_team'] }}</strong>
+                                    </span>
+                                    <span>
+                                        {% if (game['home_team_id'] == team['id'] and game['home_score'] > game['away_score']) or
+                                              (game['away_team_id'] == team['id'] and game['away_score'] > game['home_score']) %}
+                                            <badge class="badge bg-success">W</badge>
+                                        {% else %}
+                                            <badge class="badge bg-danger">L</badge>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <small class="text-muted">{{ game['game_date'] }}</small>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {# If no finished games #}
+            {% else %}
+                <p>No games played yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- League Status -->
+    <div class="alert alert-info">
+        <strong>League Status:</strong> {{ league['status']|capitalize }}
+    </div>
+</div>
+{% endblock %}

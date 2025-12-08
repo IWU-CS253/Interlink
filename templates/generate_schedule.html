@@ -1,5 +1,23 @@
 {% extends "layout.html" %}
 {% block body %}
+<script>
+    // Function to set the min date that can be selected
+    document.addEventListener("DOMContentLoaded", function() {
+        const dateInput = document.getElementById('start_date')
+        const today = new Date()
+        const oneWeek = new Date(today.getTime() + (7 * 24 * 60 * 60 * 1000))
+
+        // put into year-month-day
+        const year = oneWeek.getFullYear()
+        const month = String(oneWeek.getMonth() + 1).padStart(2,"0")
+        const day = String(oneWeek.getDate()).padStart(2, "0")
+        const minDate = `${year}-${month}-${day}`
+
+        // Set the min date on the form
+        dateInput.min = minDate
+     });
+</script>
+
 <div class="container mt-4">
     <h1>Generate Schedule for League</h1>
     <div class="alert alert-info">
@@ -10,7 +28,7 @@
     <form method="POST">
         <div class="mb-3">
             <label>Start Date</label>
-            <input type="date" name="start_date" class="form-control" required>
+            <input type="date" name="start_date" id="start_date" class="form-control" required>
         </div>
         <div class="mb-3">
             <label>Games Per Week</label>
@@ -21,19 +39,14 @@
                 <option value="4">4 games per week</option>
             </select>
         </div>
-        {% if existing_games > 0 %}
-        <div class="mb-3">
-            <input type="checkbox" name="clear_existing" id="clear_existing">
-            <label for="clear_existing">Delete unplayed games before generating new games!</label>
-        </div>
-        {% endif %}
         <button type="submit" class="btn btn-primary">Generate Schedule</button>
-        <a href="{{ url_for('league_admin', league_id=league['id']) }}"
+        <a href="{{ url_for('league_page', league_id=league['id']) }}"
            class="btn btn-secondary">Cancel</a>
     </form>
     <div class="mt-4">
         <h4>Teams:</h4>
         <ul>
+            {# Adds list items for the teams in the league #}
             {% for team in teams %}
             <li>{{ team['name'] }}</li>
             {% endfor %}

@@ -3,10 +3,11 @@ CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role TEXT,
+    role TEXT DEFAULT 'user',  -- global role: 'admin', 'user', etc.
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     name TEXT NOT NULL,
-    email TEXT not null
+    email TEXT not null,
+    email_verified DEFAULT FALSE
 );
 
 -- LEAGUES
@@ -15,10 +16,10 @@ CREATE TABLE leagues (
     league_name TEXT NOT NULL,
     sport TEXT,
     max_teams INTEGER NOT NULL,
-    admin INTEGER,
+    league_admin INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     status TEXT not null default 'signup',
-    FOREIGN KEY (admin) REFERENCES users(id)
+    FOREIGN KEY (league_admin) REFERENCES users(id)
 );
 
 -- TEAMS
@@ -55,9 +56,32 @@ CREATE INDEX idx_games_game_date ON games(game_date);
 CREATE TABLE memberships (
     user_id INTEGER NOT NULL,
     team_id INTEGER NOT NULL,
-    role TEXT DEFAULT 'player',
+    league_id INTERGER NOT NULL,
     joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, team_id),
     FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (team_id) REFERENCES teams(id)
+    FOREIGN KEY (team_id) REFERENCES teams(id),
+    FOREIGN KEY (league_id) REFERENCES leagues(id)
+);
+
+-- SYNCED CALENDAR GAMES
+CREATE TABLE calendar_synced_games (
+    game_id INTEGER PRIMARY KEY,
+    league_id INTEGER NOT NULL,
+    synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    calendar_event_id TEXT,
+    FOREIGN KEY (game_id) REFERENCES games(id),
+    FOREIGN KEY (league_id) REFERENCES games(league_id)
+);
+
+CREATE INDEX idx_calendar_synced_games_game_id ON calendar_synced_games(game_id);
+
+CREATE TABLE pending_registrations(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    name TEXT,
+    password_hash TEXT NOT NULL,
+    verification_token TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
