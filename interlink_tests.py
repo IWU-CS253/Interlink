@@ -89,7 +89,6 @@ class InterlinkTestCase(unittest.TestCase):
             db.execute('INSERT INTO users (username, password_hash, name, email, role) VALUES (?, ?, ?, ?, ?)',
                        ('user', generate_password_hash('123'), 'real name',' test@email.com', 'user'))
             db.commit()
-            user_id = db.execute("SELECT id FROM users WHERE username=?", ('user', )).fetchone()
 
         with self.app.session_transaction() as sess:
             sess['logged_in'] = True
@@ -106,7 +105,6 @@ class InterlinkTestCase(unittest.TestCase):
         self.app.post('/create_team', data=dict(
             name='Test Team',
             league='Test League',
-            team_manager='Test Manager',
         ), follow_redirects=True)
 
         with interlink.app.app_context():
