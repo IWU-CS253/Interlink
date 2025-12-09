@@ -661,7 +661,7 @@ class InterlinkTestCase(unittest.TestCase):
 
         with self.app.session_transaction() as sess:
             sess['logged_in'] = True
-            sess['username'] = 'testuser_id'
+            sess['username'] = 'testuser'
             sess['role'] = 'user'
 
         #change status from signup to active
@@ -683,7 +683,7 @@ class InterlinkTestCase(unittest.TestCase):
 
         with self.app.session_transaction() as sess:
             sess['logged_in'] = True
-            sess['username'] = 'testuser_id'
+            sess['username'] = 'testuser'
             sess['role'] = 'admin'
 
         self.app.post('/change_phase', data=dict(

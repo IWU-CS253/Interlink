@@ -136,7 +136,6 @@ def user_page():
         return redirect(url_for('home_page'))
 
     user = db.execute("SELECT id, username, name, email FROM users WHERE username=?", (username,)).fetchone()
-
     user_id = user['id']
 
     if get_current_user()['role'] == 'user':
@@ -158,7 +157,6 @@ def user_page():
             'status': league['status'],
             'role': 'League Manager'
         }
-
     for league in teams:
         if league['id'] not in all_leagues:
             all_leagues[league['id']] = {
@@ -271,55 +269,6 @@ def team_view():
                            team_manager_bool=team_manager_bool)
 
 
-@app.route('/team/<int:team_id>/manager/leave_league', methods=['POST'])
-def leave_league(team_id):
-    """Route to have a team leave a league"""
-    # Checks if logged in
-    if not session.get('logged_in'):
-        flash('Please log in to access that page.')
-        return redirect(url_for('login'))
-
-    # Checks if a user can run route
-    activeuser = get_current_user()
-    if not activeuser:
-        flash('You do not have permission to do that.')
-        return redirect('/')
-
-    db = get_db()
-
-    # Get team information
-    team = db.execute("SELECT * FROM teams WHERE id=?", (team_id,)).fetchone()
-
-    if team is None:
-        flash("Team doesn't exist")
-        return redirect(url_for("home_page"))
-
-    # Check if league is in signup phase
-    league = db.execute("SELECT * FROM leagues WHERE id=?", (team['league_id'],)).fetchone()
-
-    if league['status'] != 'signup':
-        flash('You cannot delete a team once the league is active.')
-        return redirect(url_for('team_manager', team_id=team_id))
-
-    # Check if user is the team manager
-    user_id = activeuser['id']
-
-    if team['team_manager'] != user_id or activeuser['role'] != 'admin':
-        flash('Only the team manager can delete the team.')
-        return redirect(url_for('team_manager', team_id=team_id))
-
-    team_name = team['name']
-
-    # Delete all memberships for this team
-    db.execute("DELETE FROM memberships WHERE team_id = ?", (team_id,))
-
-    # Delete the team itself
-    db.execute("DELETE FROM teams WHERE id = ?", (team_id,))
-
-    db.commit()
-
-    flash(f'Team "{team_name}" has been deleted and all players have been removed.')
-    return redirect(url_for('home_page'))
 
 # Helper method to get a teams roster with only their team name
 def get_roster(team_name, type):
@@ -724,69 +673,6 @@ def join_team_submit():
     flash("Joined The Team!")
     return redirect("/join_team_form")
 
-#copy of the join_team_submit but refactored for the admin page so admins can add players to teams a lot quicker
-@app.route('/league/<int:league_id>/admin/add_player', methods=['POST'])
-def admin_add_player(league_id):
-    #admin check
-    if not session.get('logged_in'):
-        flash("Please log in to access that page.")
-        return redirect(url_for('login'))
-
-    activeuser = get_current_user()
-    if activeuser is None or activeuser['role'] != "admin":
-        flash("You do not have permission to do that.")
-        return redirect('/')
-
-    db = get_db()
-
-    #From the admin form
-    team_name = request.form.get('team_name') or request.form.get('team')
-    username = (request.form.get('username') or '').strip()
-
-    if not team_name or not username:
-        flash("Team name and username are required.")
-        return redirect(url_for('league_admin', league_id=league_id))
-
-    #Find the team in this league
-    team_row = db.execute(
-        "SELECT id FROM teams WHERE name = ? AND league_id = ?",
-        (team_name, league_id)
-    ).fetchone()
-
-    if team_row is None:
-        flash("Team not found in this league.")
-        return redirect(url_for('league_admin', league_id=league_id))
-
-    team_id = team_row['id']
-
-    #find the user by username
-    user_row = get_user_by_username(username)
-    if user_row is None:
-        flash(f'User "{username}" not found.')
-        return redirect(url_for('league_admin', league_id=league_id))
-
-    user_id = user_row['id']
-
-    #check if already on this team
-    existing = db.execute(
-        "SELECT 1 FROM memberships WHERE user_id = ? AND team_id = ?",
-        (user_id, team_id)
-    ).fetchone()
-
-    if existing:
-        flash(f'"{username}" is already on {team_name}.')
-        return redirect(url_for('league_admin', league_id=league_id))
-
-    #add to memberships
-    db.execute(
-        "INSERT INTO memberships (user_id, team_id) VALUES (?, ?)",
-        (user_id, team_id)
-    )
-    db.commit()
-
-    flash(f'Added "{username}" to {team_name}.')
-    return redirect(url_for('league_admin', league_id=league_id))
-
 @app.route('/create_team', methods=["POST"])
 # Creates a limit on team creations per hour
 @limiter.limit("5 per hour", key_func=lambda:f"create_team:{get_remote_address()}")
@@ -865,6 +751,7 @@ def create_team():
 
 @app.route('/login', methods=['GET','POST'])
 def login():
+    """Route to log in a user"""
     error = None
     username=""
     #Try To log in
@@ -898,13 +785,17 @@ def logout():
 
 #Helper method for making sure there aren't conflicting usernames
 def get_user_by_username(username):
+    """Helper function to get a user with only their username"""
     db = get_db()
+    # SQL Query to find users with username
     cur = db.execute('SELECT id, username, password_hash, role FROM users WHERE username = ?', (username,))
     return cur.fetchone()
 
 @app.route('/signup', methods=["GET","POST"])
 def signup():
+    """Helper function to sign a user up"""
     error = None
+    # Dictionary to storm form info in case of error
     form_info = {
         'username' : "",
         'name': "",
@@ -918,6 +809,7 @@ def signup():
         password = request.form.get('password') or ''
         confirm = request.form.get('confirm') or ''
 
+        # Sets dict values to keep form populate after error
         form_info = {
             'username': username,
             'name': name,
@@ -969,6 +861,7 @@ def signup():
 
 @app.route('/submit_score', methods=['GET', 'POST'])
 def submit_score():
+    """Route to a form to submit a score for an existing game"""
     # Checks if logged in if not redirects
     if not session.get('logged_in'):
         flash('Please log in to submit scores.')
@@ -998,7 +891,7 @@ def submit_score():
                     [home_score, away_score, game_id])
                 db.commit()
                 flash('Score submitted successfully!')
-                return redirect(url_for('view_scores'))
+                return redirect(url_for('home_page'))
             except:
                 flash('Error Saving Score')
 
@@ -1016,11 +909,6 @@ def submit_score():
     leagues = db.execute("SELECT id, league_name FROM leagues").fetchall()
 
     return render_template('submit_score.html', leagues=leagues, unfinished_games=unfinished_games, league_selected = league_selected)
-
-# kept this route because submit score would get both flash messages in try/except
-@app.route('/scores')
-def view_scores():
-    return redirect(url_for('home_page'))
 
 
 @app.route('/team/<int:team_id>/manager')
@@ -1229,6 +1117,7 @@ def team_manager_add_player(team_id):
 
 @app.route('/league/<int:league_id>/admin/delete_team', methods=['POST'])
 def del_team(league_id):
+    """Route to delete a team"""
     #admin check
     if not session.get('logged_in'):
         flash('Please log in to access that page.')
@@ -1285,22 +1174,30 @@ def get_current_user():
 
 @app.route('/league/<int:league_id>')
 def league_page(league_id):
+    """Route to the league information page"""
     db = get_db()
 
+    # Gets the information for the league
     league = db.execute('SELECT * FROM leagues WHERE id = ?', (league_id,)).fetchone()
 
+    # Checks the league exists
     if league is None:
         flash("League not found")
-        return redirect(url_for('league_view'))
+        return redirect(url_for('home_page'))
 
+    # Gets teams in league
     teams = db.execute('SELECT * FROM teams WHERE league_id = ?', (league_id,)).fetchall()
 
+    # Uses helper function to get games and standings
     standings = get_standings(league_id)
     games = get_league_games(league_id)
 
+    # Checks if there is a league manager
     league_manager = False
     if session.get('logged_in'):
-        activeuser = get_current_user()
+        activeuser = get_current_user(
+        )
+        # Flags if the current user is the league manager or admin
         if activeuser:
             if activeuser['role'] == 'admin' or league['league_admin'] == activeuser['id']:
                 league_manager = True
@@ -1322,32 +1219,36 @@ def league_page(league_id):
 
 @app.route('/league/<int:league_id>/league_manager')
 def league_manager(league_id):
+    """Route to the league manager admin page"""
+    # Checks user is logged in
     if not session.get('logged_in'):
         flash('Please log in to access this page.')
         return redirect(url_for('login'))
 
+    # Gets active user
     activeuser = get_current_user()
-
-    if activeuser is None:
-        flash('Please log in to view this page')
-        return redirect('/')
+    if not activeuser:
+        flash('Please log in to access this page.')
+        return redirect(url_for('login'))
 
     db = get_db()
     league = db.execute("SELECT * FROM leagues WHERE id=?", (league_id,)).fetchone()
 
+    # Checks if the active user is a league_admin or is a site admin
     isLeagueAdmin = activeuser and activeuser['id'] == league['league_admin']
-
+    # Doesn't allow none site admins or league_admin to view page
     if activeuser['role'] != 'admin' and not isLeagueAdmin:
             flash('You do not have permission to view this page.')
             return redirect('/')
 
-
+    # checks league exists
     if league is None:
         flash("League doesn't exist")
         return redirect(url_for("home_page"))
 
+    # Finds all needed team info
     team_rows = db.execute("SELECT id, name FROM teams WHERE league_id = ? ORDER BY name",(league_id,)).fetchall()
-
+    # Puts teams into a list of dictionary values
     teams = []
     for row in team_rows:
         roster_names = get_roster(row['name'], 'name')
@@ -1374,59 +1275,6 @@ def league_manager(league_id):
         user=activeuser
     )
 
-@app.route('/league/<int:league_id>/admin/remove_player', methods=['POST'])
-def remove_player(league_id):
-    #admin check
-    if not session.get('logged_in'):
-        flash('Please log in to access that page.')
-        return redirect(url_for('login'))
-
-    activeuser = get_current_user()
-    if activeuser is None or activeuser['role'] != "admin":
-        flash("You do not have permission to do that.")
-        return redirect('/')
-
-    db = get_db()
-
-    team_name = request.form.get('team_name')
-    player_name = request.form.get('player_name')
-    if not team_name or not player_name:
-        flash('Bad request.')
-        return redirect(url_for('league_manager', league_id=league_id))
-    selectedTeam = db.execute(
-        "SELECT id FROM teams WHERE name = ? AND league_id = ?",
-        (team_name, league_id)
-    ).fetchone()
-
-    if selectedTeam is None:
-        flash('Team not found.')
-        return redirect(url_for('league_manager', league_id=league_id))
-
-    team_id = selectedTeam['id']
-
-    #get_roster uses users.name, so we match on name here
-    user_row = db.execute(
-        "SELECT id FROM users WHERE name = ?",
-        (player_name,)
-    ).fetchone()
-
-    if user_row is None:
-        flash(f'Player "{player_name}" not found.')
-        return redirect(url_for('league_manager', league_id=league_id))
-
-    user_id = user_row['id']
-
-    #Remove from memberships
-    db.execute(
-        "DELETE FROM memberships WHERE user_id = ? AND team_id = ?",
-        (user_id, team_id)
-    )
-    db.commit()
-
-    flash(f'Removed {player_name} from {team_name}.')
-    return redirect(url_for('league_manager', league_id=league_id))
-
-
 @app.route('/change_phase', methods=["POST"])
 def change_league_status():
     """Activates the league if all criteria met"""
@@ -1448,23 +1296,29 @@ def change_league_status():
     db.commit()
 
     return redirect(url_for('league_manager', league_id=league_id))
-  
+
 @app.route('/edit_score', methods=['GET', 'POST'])
 def edit_score():
-    activeuser = get_current_user()
-
-    # Checks if current user exists and has admin role, otherwise redirects
-    if activeuser is None or activeuser['role'] != "admin":
-        flash("You do not have permission to view that page.")
-        return redirect('/')
+    """Route to edit the score for league managers or """
     db = get_db()
-
+    activeuser = get_current_user()
     game_id = request.args.get('game_id')
+
+    # Gets info needed to see if league admin
+    league_id = db.execute('SELECT league_id FROM games WHERE id=?', (game_id,)).fetchone()[0]
+    admin = db.execute('SELECT league_admin FROM leagues WHERE id = ?', (league_id,)).fetchone()[0]
+    # Checks if current user exists and has admin role, otherwise redirects
+    if activeuser['id'] != admin:
+        if activeuser is None or activeuser['role'] != "admin":
+            flash("You do not have permission to view that page.")
+            return redirect('/')
+
+
 
     # Checks that game_id exists and is a valid integer, otherwise redirects
     if not game_id or not game_id.isdigit():
         flash('Game not found.')
-        return redirect(url_for('view_scores'))
+        return redirect(url_for('league_page', league_id = league_id))
 
     if request.method == 'POST':
         home_score = request.form['home_score']
@@ -1626,6 +1480,7 @@ def sync_games_to_calendar():
 
 # Helper for standings
 def get_standings(league_id):
+    """Helper function to get the leagues standings"""
     db = get_db()
     cur = db.execute('SELECT id, name FROM teams WHERE league_id = ?', [league_id])
     teams = cur.fetchall()
@@ -1667,6 +1522,7 @@ def get_league_games(league_id):
 
 @app.route('/whole_league_creation', methods=["GET", "POST"])
 def whole_league_creation():
+        """Route to create a whole league by an admin"""
         if not session.get("logged_in"):
             flash("Please log in to create a league and teams.")
             return redirect(url_for('login'))
