@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% block body %}
+<div class="ms-2">
     <form action="{{ url_for('edit_score') }}?game_id={{ game.id }}" method="post">
         <dl>
             <dt>Game ID:</dt>
@@ -13,8 +14,9 @@
 
             <dd>
                 <input type="submit" value="Update Score" class="btn btn-primary">
-                <a href="{{ url_for('view_scores') }}" class="btn btn-secondary">Cancel</a>
+                <a href="{{ url_for('home_page') }}" class="btn btn-secondary">Cancel</a>
             </dd>
         </dl>
     </form>
+</div>
 {% endblock %}
