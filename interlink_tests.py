@@ -637,5 +637,172 @@ class InterlinkTestCase(unittest.TestCase):
 
             self.assertIsNotNone(league)
 
+    #helper function to make a user a league and a certain amount of teams
+    def create_user_league_teams(self, league_name, team_count):
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            db.execute('INSERT INTO users (username, password_hash, name, email, role) VALUES (?, ?, ?, ?, ?)',
+                       ('testuser', generate_password_hash('password'), 'Test User', 'test@test.com', 'user'))
+            db.commit()
+            testuser_id = db.execute('SELECT id FROM users WHERE username = ?', ('testuser',)).fetchone()['id']
+            db.execute('INSERT INTO leagues (league_name, sport, max_teams, league_admin) VALUES (?, ?, ?, ?)',
+                       (league_name, 'Soccer', 10, testuser_id))
+            db.commit()
+            league_id = db.execute('SELECT id FROM leagues WHERE league_name = ?',
+                                   (league_name,)).fetchone()['id']
+            for i in range(team_count):
+                db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                           (f'Team {i + 1}', testuser_id, league_id))
+            db.commit()
+            return league_id, testuser_id
+
+    def test_change_league_status_to_active_fail_less_than_3_teams(self):
+        league_id, testuser_id = self.create_user_league_teams('OnlyTwoTeams', 2)
+
+        with self.app.session_transaction() as sess:
+            sess['logged_in'] = True
+            sess['username'] = 'testuser_id'
+            sess['role'] = 'user'
+
+        #change status from signup to active
+        rv = self.app.post('/change_phase', data=dict(
+            status='signup',
+            league_id=league_id
+        ), follow_redirects=True)
+
+        self.assertIn(b'League does not have enough teams', rv.data)
+
+        #check league status didnt change
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            league_status = db.execute('SELECT status FROM leagues WHERE id = ?', (league_id,)).fetchone()['status']
+            self.assertEqual(league_status, 'signup')
+
+    def test_change_league_status_to_active(self):
+        league_id, testuser_id = self.create_user_league_teams('fourteamleague', 4)
+
+        with self.app.session_transaction() as sess:
+            sess['logged_in'] = True
+            sess['username'] = 'testuser_id'
+            sess['role'] = 'admin'
+
+        self.app.post('/change_phase', data=dict(
+            status='signup',
+            league_id=league_id
+        ), follow_redirects=True)
+
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            league_status = db.execute('SELECT status FROM leagues WHERE id = ?', (league_id,)).fetchone()['status']
+            self.assertEqual(league_status, 'active')
+
+    def test_league_manager_access_denied_for_non_admin(self):
+        league_id, testuser_id = self.create_user_league_teams('TestAuthleague', 4)
+
+        #make another random user
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            db.execute('INSERT INTO users (username, password_hash, name, email, role) VALUES (?, ?, ?, ?, ?)',
+                       ('Ethan', generate_password_hash('pass'), 'Ethan', 'Ethan@test.com', 'user'))
+            db.commit()
+
+            with self.app.session_transaction() as sess:
+                sess['logged_in'] = True
+                sess['username'] = 'Ethan'
+                sess['role'] = 'user'
+
+            rv = self.app.get(f'/league/{league_id}/league_manager', follow_redirects=True)
+
+            self.assertIn(b'You do not have permission to view this page.', rv.data)
+            self.assertIn(b'InterLink', rv.data)
+
+#check non team managers can't see the manager route for a team
+    def test_team_manager_access_denied_for_non_manager(self):
+        league_id, testuser_id = self.create_user_league_teams('Testleague', 4)
+
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            team_id = db.execute('SELECT id FROM teams WHERE league_id = ?', (league_id,)).fetchone()['id']
+            db = interlink.get_db()
+
+            db.execute('INSERT INTO users (username, password_hash, name, email, role) VALUES (?, ?, ?, ?, ?)',
+                       ('Ethan', generate_password_hash('pass'), 'Ethan', 'Ethan@test.com', 'user'))
+            db.commit()
+
+            with self.app.session_transaction() as sess:
+                sess['logged_in'] = True
+                sess['username'] = 'Ethan'
+                sess['role'] = 'user'
+
+            rv = self.app.get(f'/team/{team_id}/manager', follow_redirects=True)
+            self.assertIn(b'You do not have permission to manage this team.', rv.data)
+
+#test scores can be submitted`
+    def test_submit_score_success(self):
+        league_id, testuser_id = self.create_user_league_teams('Testleague', 4)
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            team_ids = db.execute('SELECT id FROM teams WHERE league_id = ?', (league_id,)).fetchall()
+            team1_id = team_ids[0]['id']
+            team2_id = team_ids[1]['id']
+
+            db.execute(
+                'INSERT INTO games (league_id, home_team_id, away_team_id, game_date, home_score, away_score) '
+                'VALUES (?, ?, ?, ?, NULL, NULL)',
+                [league_id, team1_id, team2_id, '2025-01-01 01:00:00']
+            )
+            db.commit()
+            game_id = db.execute('SELECT id FROM games WHERE league_id = ?', (league_id,)).fetchone()['id']
+        with self.app.session_transaction() as sess:
+            sess['logged_in'] = True
+            sess['username'] = 'testuser'
+            sess['role'] = 'user'
+
+        #submit the score
+        rv = self.app.post('/submit_score', data=dict(
+            league_selected=str(league_id),
+            game_id=str(game_id),
+            home_score='10',
+            away_score='5'
+        ), follow_redirects=True)
+
+        self.assertIn(b'Score submitted successfully!', rv.data)
+
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            game = db.execute('SELECT home_score, away_score FROM games WHERE id = ?', (game_id,)).fetchone()
+
+            self.assertEqual(game['home_score'], 10)
+            self.assertEqual(game['away_score'], 5)
+
+    def test_submit_score_non_numbers_input_fails(self):
+        league_id, user_id = self.create_user_league_teams('BadScoreLeague', 4)
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            team_ids = db.execute('SELECT id FROM teams WHERE league_id = ?', (league_id,)).fetchall()
+            team1_id = team_ids[0]['id']
+            team2_id = team_ids[1]['id']
+
+            db.execute(
+                'INSERT INTO games (league_id, home_team_id, away_team_id, game_date, home_score, away_score) '
+                'VALUES (?, ?, ?, ?, NULL, NULL)',
+                [league_id, team1_id, team2_id, '2025-01-01 01:00:00']
+            )
+            db.commit()
+            game_id = db.execute('SELECT id FROM games WHERE league_id = ?', (league_id,)).fetchone()['id']
+
+        with self.app.session_transaction() as sess:
+            sess['logged_in'] = True
+            sess['username'] = 'testuser'
+            sess['role'] = 'user'
+
+        rv = self.app.post('/submit_score', data=dict(
+            league_selected=str(league_id),
+            game_id=str(game_id),
+            home_score='ten',
+            away_score='5'
+        ), follow_redirects=True)
+        self.assertIn(b'Scores must be numbers', rv.data)
+
 if __name__ == '__main__':
     unittest.main()

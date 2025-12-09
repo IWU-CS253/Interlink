@@ -1332,13 +1332,16 @@ def league_manager(league_id):
         flash('Please log in to view this page')
         return redirect('/')
 
-    if activeuser['role'] != 'admin':
-        if not league_manager:
+    db = get_db()
+    league = db.execute("SELECT * FROM leagues WHERE id=?", (league_id,)).fetchone()
+
+    isLeagueAdmin = activeuser and activeuser['id'] == league['league_admin']
+
+    if activeuser['role'] != 'admin' and not isLeagueAdmin:
             flash('You do not have permission to view this page.')
             return redirect('/')
 
-    db = get_db()
-    league = db.execute("SELECT * FROM leagues WHERE id=?", (league_id,)).fetchone()
+
     if league is None:
         flash("League doesn't exist")
         return redirect(url_for("home_page"))
