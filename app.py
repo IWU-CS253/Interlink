@@ -1195,7 +1195,8 @@ def league_page(league_id):
     # Checks if there is a league manager
     league_manager = False
     if session.get('logged_in'):
-        activeuser = get_current_user()
+        activeuser = get_current_user(
+        )
         # Flags if the current user is the league manager or admin
         if activeuser:
             if activeuser['role'] == 'admin' or league['league_admin'] == activeuser['id']:
@@ -1226,7 +1227,9 @@ def league_manager(league_id):
 
     # Gets active user
     activeuser = get_current_user()
-
+    if not activeuser:
+        flash('Please log in to access this page.')
+        return redirect(url_for('login'))
 
     db = get_db()
     league = db.execute("SELECT * FROM leagues WHERE id=?", (league_id,)).fetchone()
@@ -1271,6 +1274,28 @@ def league_manager(league_id):
         games=games,
         user=activeuser
     )
+
+@app.route('/change_phase', methods=["POST"])
+def change_league_status():
+    """Activates the league if all criteria met"""
+    league_status = request.form['status']
+    league_id = request.form['league_id']
+    db = get_db()
+
+    # Get the number of teams in the league
+    num_teams = db.execute("SELECT COUNT(*) FROM teams WHERE league_id=?", (league_id,)).fetchone()[0]
+    # Checks what status should change to and if league has enough teams to activate
+    if league_status=="signup" and int(num_teams) >= 3:
+        db.execute('UPDATE leagues SET status = "active" WHERE id=?',[league_id])
+    # Switches to signup
+    elif league_status=="active":
+        db.execute('UPDATE leagues SET status = "signup" WHERE id=?',[league_id])
+    # flashes if not enough teams
+    elif int(num_teams) < 3:
+        flash("League does not have enough teams")
+    db.commit()
+
+    return redirect(url_for('league_manager', league_id=league_id))
 
 @app.route('/edit_score', methods=['GET', 'POST'])
 def edit_score():
