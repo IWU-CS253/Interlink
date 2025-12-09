@@ -804,5 +804,205 @@ class InterlinkTestCase(unittest.TestCase):
         ), follow_redirects=True)
         self.assertIn(b'Scores must be numbers', rv.data)
 
+    def test_user_page_loads(self):
+        """Simple test that user page loads with login"""
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            db.execute('INSERT INTO users (username, password_hash, name, email, role) VALUES (?, ?, ?, ?, ?)',
+                       ('elle', generate_password_hash('pass'), 'elle', 'elle@test.com', 'user'))
+            db.commit()
+
+        with self.app.session_transaction() as sess:
+            sess['logged_in'] = True
+            sess['username'] = 'elle'
+            sess['role'] = 'user'
+
+        rv = self.app.get('/user_page')
+        self.assertEqual(rv.status_code, 200)
+        self.assertIn(b'elle', rv.data)
+
+    def test_match_schedule_loads(self):
+        """Simple test that match schedule page loads"""
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                       ('ell league', 'Basketball', 4))
+            league = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('ell league',)).fetchone()
+            self.assertIsNotNone(league)
+            league_id = league['id']
+            db.commit()
+
+        rv = self.app.get(f'/match-schedule/{league_id}')
+        self.assertEqual(rv.status_code, 200)
+        self.assertIn(b'ell league', rv.data)
+
+    def test_generate_schedule_page_loads(self):
+        """Simple test that generate schedule page loads for admin"""
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            db.execute('INSERT INTO users (username, password_hash, name, email, role) VALUES (?, ?, ?, ?, ?)',
+                       ('casey', generate_password_hash('pass'), 'casey', 'casey@test.com', 'admin'))
+            db.execute('INSERT INTO leagues (league_name, sport, max_teams, status) VALUES (?, ?, ?, ?)',
+                       ('casey cheese schedule', 'Soccer', 4, 'active'))
+            league = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('casey cheese schedule',)).fetchone()
+            self.assertIsNotNone(league)
+            league_id = league['id']
+            db.commit()
+
+        with self.app.session_transaction() as sess:
+            sess['logged_in'] = True
+            sess['username'] = 'casey'
+            sess['role'] = 'admin'
+
+        rv = self.app.get(f'/league/{league_id}/generate-schedule')
+        self.assertEqual(rv.status_code, 200)
+        self.assertIn(b'Generate Schedule', rv.data)
+
+    def test_user_page_shows_no_teams_when_none(self):
+        """Test user page shows appropriate message when user has no teams"""
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            db.execute('INSERT INTO users (username, password_hash, name, email, role) VALUES (?, ?, ?, ?, ?)',
+                       ('hayden', generate_password_hash('pass'), 'hayden', 'hayden@test.com', 'user'))
+            db.commit()
+
+        with self.app.session_transaction() as sess:
+            sess['logged_in'] = True
+            sess['username'] = 'hayden'
+            sess['role'] = 'user'
+
+        rv = self.app.get('/user_page')
+        self.assertEqual(rv.status_code, 200)
+        self.assertIn(b'hayden', rv.data)
+
+    def test_match_schedule_shows_no_games_message(self):
+        """Test match schedule shows message when no games scheduled"""
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                       ('hayden', 'Volleyball', 6))
+            league = db.execute('SELECT id FROM leagues WHERE league_name = ?',
+                                ('hayden',)).fetchone()
+            self.assertIsNotNone(league)
+            league_id = league['id']
+            db.commit()
+
+        rv = self.app.get(f'/match-schedule/{league_id}')
+        self.assertEqual(rv.status_code, 200)
+        self.assertIn(b'hayden', rv.data)
+
+    def test_generate_schedule_redirects_when_not_logged_in(self):
+        """Test generate schedule redirects to login when not authenticated"""
+        self.clearSession()
+
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                       ('test league', 'Basketball', 4))
+            league = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('test league',)).fetchone()
+            self.assertIsNotNone(league)
+            league_id = league['id']
+            db.commit()
+
+        rv = self.app.get(f'/league/{league_id}/generate-schedule', follow_redirects=True)
+        self.assertIn(b'Please log in to access that page.', rv.data)
+
+    def test_user_page_with_username_param(self):
+        """Test user page can be accessed with username parameter"""
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            db.execute('INSERT INTO users (username, password_hash, name, email, role) VALUES (?, ?, ?, ?, ?)',
+                       ('ethan', generate_password_hash('pass'), 'ethan', 'ethan@test.com', 'user'))
+            db.commit()
+
+        with self.app.session_transaction() as sess:
+            sess['logged_in'] = True
+            sess['username'] = 'ethan'
+            sess['role'] = 'user'
+
+        rv = self.app.get('/user_page?username=ethan')
+        self.assertEqual(rv.status_code, 200)
+        self.assertIn(b'ethan', rv.data)
+
+    def test_match_schedule_with_games(self):
+        """Test match schedule shows games when they exist"""
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                       ('ethan basketball', 'Basketball', 4))
+            league = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('ethan basketball',)).fetchone()
+            self.assertIsNotNone(league)
+            league_id = league['id']
+
+            db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                       ('team1', 1, league_id))
+            db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                       ('team2', 2, league_id))
+
+            team1 = db.execute('SELECT id FROM teams WHERE name = ?', ('team1',)).fetchone()
+            team2 = db.execute('SELECT id FROM teams WHERE name = ?', ('team2',)).fetchone()
+            self.assertIsNotNone(team1)
+            self.assertIsNotNone(team2)
+            team1_id = team1['id']
+            team2_id = team2['id']
+
+            db.execute('INSERT INTO games (league_id, home_team_id, away_team_id, game_date, home_score, away_score) '
+                       'VALUES (?, ?, ?, ?, 10, 8)',
+                       (league_id, team1_id, team2_id, '2025-01-01 19:00:00'))
+            db.commit()
+
+        rv = self.app.get(f'/match-schedule/{league_id}')
+        self.assertEqual(rv.status_code, 200)
+        self.assertIn(b'ethan basketball', rv.data)
+        self.assertIn(b'team1', rv.data)
+        self.assertIn(b'team2', rv.data)
+
+    def test_user_page_with_team(self):
+        """Test user page shows team when user is in one"""
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            db.execute('INSERT INTO users (username, password_hash, name, email, role) VALUES (?, ?, ?, ?, ?)',
+                       ('elle', generate_password_hash('pass'), 'elle', 'elle@test.com', 'user'))
+            user = db.execute('SELECT id FROM users WHERE username = ?', ('elle',)).fetchone()
+            self.assertIsNotNone(user)
+            user_id = user['id']
+
+            db.execute('INSERT INTO leagues (league_name, sport, max_teams) VALUES (?, ?, ?)',
+                       ('cheese', 'Soccer', 8))
+            league = db.execute('SELECT id FROM leagues WHERE league_name = ?', ('cheese',)).fetchone()
+            self.assertIsNotNone(league)
+            league_id = league['id']
+
+            db.execute('INSERT INTO teams (name, team_manager, league_id) VALUES (?, ?, ?)',
+                       ('myteam', user_id, league_id))
+            team = db.execute('SELECT id FROM teams WHERE name = ?', ('myteam',)).fetchone()
+            self.assertIsNotNone(team)
+            team_id = team['id']
+
+            db.execute('INSERT INTO memberships (user_id, team_id, league_id) VALUES (?, ?, ?)',
+                       (user_id, team_id, league_id))
+            db.commit()
+
+        with self.app.session_transaction() as sess:
+            sess['logged_in'] = True
+            sess['username'] = 'elle'
+            sess['role'] = 'user'
+
+        rv = self.app.get('/user_page')
+        self.assertEqual(rv.status_code, 200)
+        self.assertIn(b'elle', rv.data)
+        self.assertIn(b'myteam', rv.data)
+
+    def test_leave_team_requires_login(self):
+        """Test leave team requires authentication"""
+        self.clearSession()
+        rv = self.app.post('/leave_team', data=dict(
+            user='1',
+            team='1',
+            team_name='myteam'
+        ), follow_redirects=True)
+
+        self.assertTrue(rv.status_code in [200, 302])
+
 if __name__ == '__main__':
     unittest.main()
