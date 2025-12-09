@@ -795,15 +795,19 @@ def create_team():
         league_id = league_row["id"]
         max_teams = league_row["max_teams"]
 
-        #don't allow more teams then max teams for league and don't allow
+        # Makes sure the user isn't already a member of another team in the league
+        in_league = db.execute("SELECT user_id FROM memberships WHERE league_id=?", (league_id,)).fetchall()
+        if in_league:
+            flash("You are already a member of a team in this league")
+            return redirect(url_for('team_creation'))
+
+        #don't allow more teams than max teams for league and don't allow
         #duplicate team names
         teamCount = db.execute(
             "SELECT COUNT(*) FROM teams WHERE league_id = ?",
             (league_id,)
         ).fetchone()[0]
 
-        print(max_teams)
-        print(teamCount)
         # Checks if max teams are in league and blocks joining if so
         if max_teams is not None and teamCount >= max_teams:
             flash("This league is already at its max number of teams.")
@@ -1448,6 +1452,8 @@ def get_calendar_service():
     if not GOOGLE_CALENDAR_AVAILABLE:
         return None
 
+    if not SERVICE_ACCOUNT_FILE:
+        return None
     # Creates the credentials using the service account .json file
     credentials = service_account.Credentials.from_service_account_file(
         SERVICE_ACCOUNT_FILE, scopes=SCOPES)
