@@ -93,9 +93,10 @@ def close_db(error):
     if hasattr(g, 'sqlite_db'):
         g.sqlite_db.close()
 
-# Makes flask_limiter errors a flash message instead of separate page
+
 @app.errorhandler(RateLimitExceeded)
 def handle_rate_limit_exceeded(e):
+    """Creates a flash for flask limiter instead of error page"""
     flash(f'Rate limit exceeded', 'error')
     return redirect(url_for('home_page'))
 @app.route('/', methods=["GET", "POST"])
@@ -322,6 +323,7 @@ def leave_league(team_id):
 
 # Helper method to get a teams roster with only their team name
 def get_roster(team_name, type):
+    """Helper function to get the roster with either just names or sql object"""
     db = get_db()
     # Finds a team id from the name
     team_id = db.execute('SELECT id FROM teams WHERE name=?', [team_name]).fetchone()[0]
@@ -379,6 +381,7 @@ def league_creation():
 
 @app.route('/league/<int:league_id>/admin/delete_league', methods=["POST"])
 def delete_league(league_id):
+    """Route to delete a league"""
     # Logged in check
     if not session.get('logged_in'):
         flash('Please log in to access that page.')
@@ -628,6 +631,7 @@ def generate_schedule(league_id):
                            existing_games=existing_games)
 @app.route('/team-creation')
 def team_creation():
+    """Route to the team creation form"""
     # Check logged in
     if not session.get('logged_in'):
         flash("Please log in to access that page.")
@@ -642,6 +646,7 @@ def team_creation():
 
 @app.route('/join_team_form')
 def join_team_form():
+    """Route to join a team"""
     # Check that user is logged in
     if not session.get('logged_in'):
         flash('Please log in to access that page.')
@@ -671,6 +676,7 @@ def join_team_form():
 
 @app.route('/join_team_submit', methods=["POST"])
 def join_team_submit():
+    """Route that submits team join form and puts a user into a team"""
     # Checks that a user is logged in
     if not session.get("logged_in"):
         flash("Please log in to join a team!")
@@ -785,6 +791,7 @@ def admin_add_player(league_id):
 # Creates a limit on team creations per hour
 @limiter.limit("5 per hour", key_func=lambda:f"create_team:{get_remote_address()}")
 def create_team():
+    """Route to create a team"""
     activeuser = get_current_user()
     # Checks that a user is logged in
     if not session.get("logged_in"):
@@ -1089,6 +1096,7 @@ def team_manager(team_id):
 
 @app.route('/team/<int:team_id>/manager/remove_player', methods=['POST'])
 def team_manager_remove_player(team_id):
+    """Route for a team manager to remove a player"""
     if not session.get('logged_in'):
         flash('Please log in to access that page.')
         return redirect(url_for('login'))
@@ -1149,21 +1157,22 @@ def team_manager_remove_player(team_id):
 
 @app.route('/team/<int:team_id>/manager/add_player', methods=['POST'])
 def team_manager_add_player(team_id):
+    """Route for a team manager to add a player"""
+    # Checks player logged in
     if not session.get('logged_in'):
         flash("Please log in to access that page.")
         return redirect(url_for('login'))
 
+    # Checks that user is allowed to add player
     activeuser = get_current_user()
-
     if not activeuser:
         flash("You do not have permission to do that.")
         return redirect('/')
 
     db = get_db()
 
-    # Get team information
+    # Get team information and checks if team exists
     team = db.execute("SELECT * FROM teams WHERE id=?", (team_id,)).fetchone()
-
     if team is None:
         flash("Team doesn't exist")
         return redirect(url_for("home_page"))
@@ -1174,14 +1183,13 @@ def team_manager_add_player(team_id):
         return redirect('/')
 
     username = (request.form.get('username') or '').strip()
-
+    # Checks if a username is submitted
     if not username:
         flash("Username is required.")
         return redirect(url_for('team_manager', team_id=team_id))
 
-    # Find the user by username
+    # Find the user by username and check if it exists
     user_row = get_user_by_username(username)
-
     if user_row is None:
         flash(f'User "{username}" not found.')
         return redirect(url_for('team_manager', team_id=team_id))
