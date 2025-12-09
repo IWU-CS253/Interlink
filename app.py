@@ -26,6 +26,7 @@ app = Flask(__name__)
 
 
 def get_client_cookies():
+    """Gets clients cookies for the flask limiter"""
     # Get client cookies
     user_cookies = request.cookies.get('user_id')
 
@@ -35,7 +36,7 @@ def get_client_cookies():
 
     return f'{user_cookies}:{request.endpoint}'
 
-# Creates flask_limiter extension
+# Creates flask_limiter
 limiter = Limiter(
     app=app,
     key_func= get_client_cookies,
@@ -99,6 +100,7 @@ def handle_rate_limit_exceeded(e):
     return redirect(url_for('home_page'))
 @app.route('/', methods=["GET", "POST"])
 def home_page():
+    """Route for the homepage"""
     filter = request.args.get('filter', None)
     db = get_db()
 
@@ -196,6 +198,7 @@ def user_page():
 
 @app.route('/leave_team', methods=["POST"])
 def leave_team():
+    """Route for player to leave team"""
     # Get ids and team name
     user_id = request.form.get('user')
     team_id = request.form.get('team')
@@ -212,6 +215,7 @@ def leave_team():
 
 @app.route('/team_view', methods=["GET"])
 def team_view():
+    """Route for the team view page"""
     team_name = request.args.get("team_name")
     league_name = request.args.get("league_name")
     team_manager = request.args.get("team_manager")  # This is a STRING from URL
@@ -224,9 +228,11 @@ def team_view():
     # Get the actual team from database to get the real team_manager ID
     team = db.execute("SELECT * FROM teams WHERE id = ?", [team_id]).fetchone()
 
+    # Gets the roster and the player
     roster = get_roster(team_name, 'name')
     user = get_current_user()
 
+    # Gets information for game display
     cur = db.execute("""SELECT games.id,
                                games.game_date,
                                games.home_score,
@@ -242,6 +248,7 @@ def team_view():
                         ORDER BY games.game_date ASC""", [team_id, team_id])
     games = cur.fetchall()
 
+    # Checks if a user is team manager
     team_manager_bool = False
     if session.get('logged_in'):
         activeuser = get_current_user()
@@ -265,12 +272,14 @@ def team_view():
 
 @app.route('/team/<int:team_id>/manager/leave_league', methods=['POST'])
 def leave_league(team_id):
+    """Route to have a team leave a league"""
+    # Checks if logged in
     if not session.get('logged_in'):
         flash('Please log in to access that page.')
         return redirect(url_for('login'))
 
+    # Checks if a user can run route
     activeuser = get_current_user()
-
     if not activeuser:
         flash('You do not have permission to do that.')
         return redirect('/')
@@ -320,6 +329,7 @@ def get_roster(team_name, type):
     roster_ids = [row[0] for row in cur.fetchall()]
     roster = []
     if type == 'object':
+        # Loops and gets the players SQL object
         for player_id in roster_ids:
             cur=db.execute('SELECT * FROM users where id=?', [player_id])
             roster.append(cur.fetchone())
@@ -336,17 +346,20 @@ def get_roster(team_name, type):
 # Sets a limit for creating leagues to 5 per hour
 @limiter.limit("5 per hour", key_func=lambda:f"create_league:{get_remote_address()}")
 def league_creation():
+    """Creates a league"""
     # Logged in check
     if not session.get('logged_in'):
         flash("Please log in to access that page.")
         return redirect(url_for('login'))
 
+    # Checks if use has permission to user route
     activeuser = get_current_user()
     if activeuser is None:
         flash("Please log in to access that page.")
         return redirect(url_for('login'))
 
     if request.method == "POST":
+        # Checks if league name used
         db = get_db()
         names = db.execute('SELECT league_name FROM leagues').fetchall()
         for name in names:
@@ -354,6 +367,7 @@ def league_creation():
                 flash("There is a league with that name already")
                 return redirect(url_for('league_creation'))
 
+        # Puts league into database
         db.execute("INSERT into leagues (league_name, sport, max_teams, league_admin) VALUES (?, ?, ?, ?)", [request.form["league_name"], request.form["sport"], request.form["max_teams"], activeuser['id']])
         db.commit()
 
@@ -677,7 +691,6 @@ def join_team_submit():
     existing = db.execute(
         'SELECT * FROM memberships WHERE user_id = ? AND team_id = ?',
         [user_id, team_id]).fetchone()
-
     if existing:
         flash("You are already a member of this team!")
         return redirect("/join_team_form")
@@ -686,11 +699,11 @@ def join_team_submit():
     in_league = db.execute(
         'SELECT * FROM memberships WHERE user_id = ? AND league_id = ?',
         [user_id, league_id]).fetchone()
-
     if in_league:
         flash("You are already a member of a team in this league!")
         return redirect("/join_team_form")
 
+    # Gets roster and checks if user is first in roster and should be team manager
     roster = get_roster(team_name, "name")
     if len(roster) > 0:
         db.execute('INSERT INTO memberships (user_id, team_id, league_id) VALUES (?,?,?)', [user_id, team_id, league_id])
@@ -867,6 +880,8 @@ def login():
 
 @app.route('/logout')
 def logout():
+    """Route to log out a user"""
+    # Removes user information from the session
     session.pop('logged_in', None)
     session.pop('username', None)
     session.pop('role', None)
@@ -920,15 +935,19 @@ def signup():
                 error = 'An account with this email already exists.'
             else:
                 try:
+                    # Creates a verification token for the email
                     verification_token = secrets.token_urlsafe(32)
+                    # Temporarily stores registrants in a table of non-verified registrants
                     db.execute(
                         'INSERT INTO pending_registrations (username, email, name, password_hash, verification_token) VALUES (?, ?, ?, ?, ?)',
                         (username, email, name, generate_password_hash(password), verification_token)
                     )
                     db.commit()
 
+                    # Gets the id to send verification email to
                     pending_id = db.execute('SELECT id FROM pending_registrations WHERE username=?', (username,)).fetchone()[0]
 
+                    # Sends verification email and redirects to homepage
                     email_sent = send_verification_email(email, username, verification_token, pending_id)
                     if email_sent:
                         flash('Verification email sent')
@@ -990,6 +1009,7 @@ def view_scores():
 
 @app.route('/team/<int:team_id>/manager')
 def team_manager(team_id):
+    """Route for the team manager editing page"""
     if not session.get('logged_in'):
         flash('Please log in to access this page.')
         return redirect(url_for('login'))
@@ -1041,7 +1061,6 @@ def team_manager(team_id):
     # Separate finished and upcoming games
     finished_games = []
     upcoming_games = []
-
     for game in games:
         if game['home_score'] is not None and game['away_score'] is not None:
             finished_games.append(game)
@@ -1390,9 +1409,11 @@ def remove_player(league_id):
 
 @app.route('/change_phase', methods=["POST"])
 def change_league_status():
+    """Activates the league if all criteria met"""
     league_status = request.form['status']
     league_id = request.form['league_id']
     db = get_db()
+
     # Get the number of teams in the league
     num_teams = db.execute("SELECT COUNT(*) FROM teams WHERE league_id=?", (league_id,)).fetchone()[0]
     # Checks what status should change to and if league has enough teams to activate
@@ -1405,6 +1426,7 @@ def change_league_status():
     elif int(num_teams) < 3:
         flash("League does not have enough teams")
     db.commit()
+
     return redirect(url_for('league_manager', league_id=league_id))
   
 @app.route('/edit_score', methods=['GET', 'POST'])
@@ -1606,6 +1628,7 @@ def get_standings(league_id):
 
 #Helper for league games
 def get_league_games(league_id):
+    """Gets all finished games for a league"""
     db = get_db()
     cur = db.execute("""SELECT games.id, games.game_date, games.home_score, games.away_score, 
                        teams.name as home_team, teams2.name as away_team 
@@ -1725,6 +1748,7 @@ def whole_league_creation():
 # Route for the verification link that moves users from pending to actual users table
 @app.route('/verify-email/<int:pending_id>/<token>')
 def verify_email(pending_id, token):
+    """Verifies an account after user clicks emailed link"""
     db = get_db()
 
     # Get pending registration
