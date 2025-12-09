@@ -775,6 +775,7 @@ def create_team():
     activeuser = get_current_user()
     # Checks that a user is logged in
     if not session.get("logged_in"):
+        flash("Please log in to access that page.")
         return redirect('/login')
 
     else:
