@@ -795,7 +795,7 @@ def create_team():
         max_teams = league_row["max_teams"]
 
         # Makes sure the user isn't already a member of another team in the league
-        in_league = db.execute("SELECT user_id FROM memberships WHERE league_id=?", (league_id,))
+        in_league = db.execute("SELECT * FROM memberships WHERE league_id=? and user_id=?", (league_id, activeuser['id'])).fetchall()
         if in_league:
             flash("You are already a member of a team in this league")
             return redirect(url_for('team_creation'))
@@ -1449,6 +1449,9 @@ def edit_score():
 def get_calendar_service():
     """Get Google Calendar service with service account credentials"""
     if not GOOGLE_CALENDAR_AVAILABLE:
+        return None
+
+    if not SERVICE_ACCOUNT_FILE:
         return None
 
     # Creates the credentials using the service account .json file
