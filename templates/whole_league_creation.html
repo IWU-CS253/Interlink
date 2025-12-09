@@ -10,6 +10,12 @@
         </div>
     {% endif %}
 
+    <!--
+    "step" system let me make 2 forms on the same page by loading the first one, letting the user
+    set up the league first and make a max team value and then in the second step, it uses the max team
+    value previously set and then makes x amount of form slots for that many teams, which don't have to be
+    filled out but can be if the league admin knows all the team info.
+    -->
     {% if step == 1 or step is not defined %}
     <form action="{{ url_for('whole_league_creation') }}" method="post" class="card p-4 shadow-sm">
         <input type="hidden" name="step" value="1">
