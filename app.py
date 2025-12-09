@@ -125,8 +125,11 @@ def home_page():
 
 @app.route('/user_page', methods=["GET", "POST"])
 def user_page():
+    """Route for user profile page"""
     db = get_db()
     username_id = request.args.get('username')
+
+    # Check to make sure user is logged in before continuing
     if username_id:
         username = username_id.strip()
     elif session.get('logged_in'):
@@ -135,19 +138,24 @@ def user_page():
         flash('Please log in or specify a username.')
         return redirect(url_for('home_page'))
 
+    # Get user information from db
     user = db.execute("SELECT id, username, name, email FROM users WHERE username=?", (username,)).fetchone()
     user_id = user['id']
 
+    # If regular user, check if their id is a league admin from leagues table to retrieve managed leagues
     if get_current_user()['role'] == 'user':
         managed_leagues = db.execute("SELECT id, league_name, sport, status FROM leagues WHERE league_admin=?", (user_id,)).fetchall()
 
+    # Otherwise admin, so retrieve all leagues (admin power)
     else:
         managed_leagues = db.execute("SELECT id, league_name, sport, status FROM leagues",).fetchall()
 
+    # Select teams from leagues that user belongs to
     teams = db.execute("SELECT DISTINCT leagues.id, leagues.league_name, leagues.sport, leagues.status FROM memberships "
                        "JOIN teams ON memberships.team_id = teams.id JOIN leagues ON teams.league_id = leagues.id "
                        "WHERE memberships.user_id=?", (user_id,)).fetchall()
 
+    # Add leagues and joined teams into one dictionary
     all_leagues = {}
     for league in managed_leagues:
         all_leagues[league['id']] = {
@@ -169,24 +177,29 @@ def user_page():
 
     all_league = list(all_leagues.values())
 
+    # Get specific team info for display
     teams = db.execute('SELECT teams.id, teams.name, teams.team_manager, leagues.id AS league_id, leagues.league_name, leagues.sport FROM memberships '
                        'JOIN teams ON memberships.team_id=teams.id JOIN leagues ON teams.league_id=leagues.id WHERE '
                        'memberships.user_id=? ORDER BY leagues.league_name', [user_id]).fetchall()
 
+    # Format games by league for display page
     games_in_league = {}
     for team in teams:
         league_identifier = f"{team['league_name']} ({team['sport']})"
 
+        # Add league entry if doesn't already exist
         if league_identifier not in games_in_league:
             games_in_league[league_identifier] = {'league_id': team['league_id'], 'league_name': team['league_name'],
                 'sport': team['sport'], 'games': []}
 
+        # Get all games involving specific team
         games = db.execute("SELECT games.id, games.game_date, games.home_score, games.away_score, home_teams.name AS home_team, "
                          "away_teams.name AS away_team, home_teams.id AS home_team_id, away_teams.id AS away_team_id "
                          "FROM games JOIN teams as home_teams ON games.home_team_id=home_teams.id JOIN teams AS away_teams "
                          "ON games.away_team_id=away_teams.id WHERE games.league_id=? AND (home_teams.id=? OR away_teams.id=?)"
                          "ORDER BY games.game_date ASC", [team['league_id'], team['id'], team['id']]).fetchall()
 
+        # Add games to league game list
         for game in games:
             game_tracker = dict(game)
             if not any(g['id'] == game_tracker['id'] for g in games_in_league[league_identifier]['games']):
@@ -386,6 +399,8 @@ def delete_league(league_id):
     return redirect(url_for('home_page'))
 
 def month_days(month, year):
+    """Days in month helper function for schedule auto-generation route"""
+    # Months with thirty days versus thirty one
     days_thirty_one = [1, 3, 5, 7, 8, 10, 12]
     days_thirty = [4, 6, 9, 11]
     if month in days_thirty_one:
@@ -400,6 +415,7 @@ def month_days(month, year):
         return 28
 
 def date(year, month, day, add_days):
+    """Helper function for schedule auto-generation feature that increments dates"""
     day += add_days
 
     # Change to next month
@@ -416,22 +432,28 @@ def date(year, month, day, add_days):
 
 @app.route('/match-schedule/<int:league_id>')
 def match_schedule(league_id):
+    """Route for match schedule display"""
     db = get_db()
+
+    # Make sure league exists
     league = db.execute('SELECT * FROM leagues WHERE id=?', [league_id]).fetchone()
     if league is None:
         flash('League does not exist!')
         return redirect(url_for('home_page'))
 
+    # Retrieve all games in league ordered by date (starting with most recent)
     games = db.execute('''
                        SELECT games.id, games.game_date, games.home_score, games.away_score, games.home_team_id,
                        games.away_team_id FROM games WHERE games.league_id = ? ORDER BY games.game_date ASC
                        ''', [league_id]).fetchall()
 
+    # Select home and away team names
     team_games = []
     for game in games:
         home_team = db.execute('SELECT name FROM teams WHERE id=?', [game['home_team_id']]).fetchone()
         away_team = db.execute('SELECT name FROM teams WHERE id=?', [game['away_team_id']]).fetchone()
 
+        # Add all info about games into dictionary for retrieving later
         game_dict = {
             'id': game['id'],
             'game_date': game['game_date'],
@@ -447,6 +469,7 @@ def match_schedule(league_id):
     finished_games = []
     future_games = []
 
+    # Separate future nad finished games for display on user page
     for game in team_games:
         if game['home_score'] is None or game['away_score'] is None:
             future_games.append(game)
@@ -458,7 +481,9 @@ def match_schedule(league_id):
 
 @app.route('/league/<int:league_id>/generate-schedule', methods=['GET', 'POST'])
 def generate_schedule(league_id):
-    # admin and logged in check
+    """Route for generating match schedule for league"""
+
+    # Ensure user is logged in before accessing feature
     if not session.get('logged_in'):
         flash("Please log in to access that page.")
         return redirect(url_for('login'))
@@ -466,6 +491,7 @@ def generate_schedule(league_id):
 
     db = get_db()
 
+    # Ensure league exists
     league = db.execute('SELECT * FROM leagues WHERE id=?', [league_id]).fetchone()
     teams = db.execute('SELECT id, name FROM teams WHERE league_id=?', [league_id]).fetchall()
     if league is None:
@@ -473,20 +499,27 @@ def generate_schedule(league_id):
         return redirect(url_for('home_page'))
 
     if request.method == 'POST':
+
+        # Check if games have already started
         played_games = db.execute(
             'SELECT * FROM games WHERE league_id=? and home_score IS NOT NULL AND away_score IS NOT NULL',
             [league_id]).fetchall()
 
+        # If league matches have started, games cannot be cleared and re-scheduled
         if played_games:
             flash('Cannot regenerate schedule, league is already in progress')
             return redirect(url_for('match_schedule', league_id=league_id))
+
+        # If league is still in signup phase, game schedule cannot be generated as teams have not filled up
         if league['status'] == "signup":
             flash('League is not ready yet')
             return redirect(url_for('match_schedule', league_id=league_id))
 
+        # For displaying date of matches and incrementing
         starting_date = request.form['start_date']
         games_week = int(request.form.get('games_per_week'))
 
+        # Clear games that have been scheduled but not played if the matches havent started but schedule needs to be redone
         games = db.execute(
             'SELECT * FROM games WHERE league_id=? and home_score IS NULL AND away_score IS NULL',
             [league_id]).fetchall()
@@ -522,22 +555,23 @@ def generate_schedule(league_id):
         db.commit()
         flash('Games successfully cleared!')
 
-
+        # Generate team pairing with nested loops incrementing offset by one
         pairings = []
         for i in range(len(teams)):
             for j in range(i + 1, len(teams)):
                 pairings.append((teams[i]['id'], teams[j]['id']))
                 pairings.append((teams[j]['id'], teams[i]['id']))
+        # For mixing up order of matches (team 1 doesn't always play first)
         random.shuffle(pairings)
 
-        current_date = datetime.strptime(starting_date, '%Y-%m-%d')
-        current_game_count = 0
-
+        # For formatting of date and start date for schedulign
         start_date = starting_date.split('-')
         year = int(start_date[0])
         month = int(start_date[1])
         day = int(start_date[2])
         current_game_count = 0
+
+        # Schedule pairings with associated dates, ensuring correct format
         for home_id, away_id in pairings:
             if month < 10:
                 month_str = '0' + str(month)
@@ -549,20 +583,25 @@ def generate_schedule(league_id):
             else:
                 day_str = str(day)
 
+            # Put together full date string with YYYY-MM-DD + Time format
             game_date = str(year) + '-' + month_str + '-' + day_str + ' 19:00:00'
 
+            # Add game with information into database, default score values to NULL
             db.execute('INSERT INTO games (league_id, home_team_id, away_team_id, game_date, home_score, away_score) '
                        'VALUES (?, ?, ?, ?, NULL, NULL)',
                 [league_id, home_id, away_id, game_date])
 
+            # Update schedule counter
             current_game_count += 1
             if current_game_count >= games_week:
+                # Move to next week
                 result = date(year, month, day, 7)
                 year = result[0]
                 month = result[1]
                 day = result[2]
                 current_game_count = 0
             else:
+                # move to next day (3 days interval between games)
                 result = date(year, month, day, 3)
                 year = result[0]
                 month = result[1]
@@ -572,6 +611,7 @@ def generate_schedule(league_id):
         flash('Games generated!')
         return redirect(url_for('match_schedule', league_id=league_id))
 
+    # Display schedule generation form if the schedule already done. Check games exist
     row = db.execute('SELECT COUNT(*) as count FROM games WHERE league_id=? AND home_score IS NULL',
                      [league_id]).fetchone()
     existing_games = row['count']
@@ -1165,8 +1205,8 @@ def del_team(league_id):
     flash(f'Team "{team_row["name"]}" deleted.')
     return redirect(url_for('league_manager', league_id=league_id))
 
-#helper for admin page
 def get_current_user():
+    """Helper function for admin page that returns current user of session"""
     username = session.get('username')
     if not username:
         return None
