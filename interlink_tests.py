@@ -23,6 +23,14 @@ class InterlinkTestCase(unittest.TestCase):
         os.close(self.db_fd)
         os.unlink(interlink.app.config['DATABASE'])
 
+    #helper function to clear session
+    def clearSession(self):
+        with interlink.app.app_context():
+            with self.app.session_transaction() as sess:
+                sess.pop('logged_in', None)
+                sess.pop('username', None)
+                sess.pop('role', None)
+
 # LEAGUE CREATION
     def test_create_league_stores_in_db(self):
         with interlink.app.app_context():
@@ -522,6 +530,112 @@ class InterlinkTestCase(unittest.TestCase):
            assert 'Ethan' in roster
            assert 'Elle' in roster
            assert 'Hayden' in roster
+
+    def test_league_creation_requires_login(self):
+        with interlink.app.app_context():
+            with self.app.session_transaction() as sess:
+                self.clearSession()
+
+                rv = self.app.post('/league_creation', follow_redirects=True)
+                assert rv.status_code == 200  # html is good
+                assert b'Please log in to access that page.' in rv.data
+
+                rv_post = self.app.post('/league_creation', data=dict(
+                    league_name='Caseys up to bat',
+                    sport='Baseball',
+                    max_teams='4'
+                ), follow_redirects=True)
+
+                assert rv_post.status_code == 200
+                assert b'Please log in to access that page.' in rv_post.data
+
+                # check that league isn't made
+                with interlink.app.app_context():
+                    db = interlink.get_db()
+                    league = db.execute(
+                        'SELECT id FROM leagues WHERE league_name = ?',
+                        ('Caseys up to bat',)
+                    ).fetchone()
+
+                    assert league is None
+
+    def test_team_creation_requires_login(self):
+        self.clearSession()
+        rv = self.app.get('/team-creation', follow_redirects=True)
+
+        self.assertEqual(rv.status_code, 200)
+        self.assertIn(b'Please log in to access that page.', rv.data)
+
+        rv_post = self.app.post('/create_team', data=dict(
+            name="fake team",
+            league="fake league"
+        ), follow_redirects=True)
+
+        self.assertEqual(rv_post.status_code, 200)
+        self.assertIn(b'Please log in to access that page.', rv_post.data)
+
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            team = db.execute(
+                'SELECT id FROM teams WHERE name = ?',
+                ("fake team",)
+            ).fetchone()
+
+            self.assertIsNone(team)
+
+
+    def test_submit_score_requires_login(self):
+        self.clearSession()
+        rv = self.app.get('/submit_score', follow_redirects=True)
+
+        self.assertEqual(rv.status_code, 200)
+        self.assertIn(b'Please log in to submit scores.', rv.data)
+        self.assertIn(b'Login', rv.data)
+
+        rv_post = self.app.post('/submit_score', data=dict(
+            league_selected='1',
+            game_id='1',
+            home_score='5',
+            away_score='2'
+        ), follow_redirects=True)
+
+        self.assertEqual(rv_post.status_code, 200)
+        self.assertIn(b'Please log in to submit scores.', rv_post.data)
+
+    def test_delete_league_requires_login(self):
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            db.execute('INSERT INTO users (username, password_hash, name, email, role) VALUES (?, ?, ?, ?, ?)',
+                       ('testuser', generate_password_hash('password'), 'Test User', 'test@test.com', 'user'))
+            db.commit()
+            testuser_id = db.execute(
+                'SELECT id FROM users WHERE username = ?',
+                ('testuser',)
+            ).fetchone()['id']
+
+            db.execute('INSERT INTO leagues (league_name, sport, max_teams, league_admin) VALUES (?, ?, ?, ?)',
+                       ('League One', 'Soccer', 10, testuser_id))
+            db.commit()
+            league_id = db.execute('SELECT id FROM leagues WHERE league_name = ?',
+                                   ('League One',)).fetchone()['id']
+
+
+        self.clearSession()
+
+        delete_url = f'/league/{league_id}/admin/delete_league'
+        rv = self.app.post(delete_url, follow_redirects=True)
+
+        self.assertEqual(rv.status_code, 200)
+        self.assertIn(b'Please log in to access that page.', rv.data)
+
+        with interlink.app.app_context():
+            db = interlink.get_db()
+            league = db.execute(
+                'SELECT id FROM leagues WHERE id = ?',
+                (league_id,)
+            ).fetchone()
+
+            self.assertIsNotNone(league)
 
 if __name__ == '__main__':
     unittest.main()
