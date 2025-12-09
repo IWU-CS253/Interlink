@@ -788,6 +788,7 @@ def create_team():
     activeuser = get_current_user()
     # Checks that a user is logged in
     if not session.get("logged_in"):
+        flash("Please log in to access that page.")
         return redirect('/login')
 
     else:
@@ -961,14 +962,17 @@ def signup():
 
 @app.route('/submit_score', methods=['GET', 'POST'])
 def submit_score():
+    # Checks if logged in if not redirects
     if not session.get('logged_in'):
         flash('Please log in to submit scores.')
         return redirect(url_for('login'))
     db = get_db()
 
+    # get league id and inits an empty list to store games
     league_selected = request.args.get('league_selected')
     unfinished_games = []
 
+    # Handles form submission and extracts data : league selection, game id, and both scores
     if request.method == 'POST':
         league_selected = request.form['league_selected']
         game_id = request.form['game_id']
@@ -981,6 +985,7 @@ def submit_score():
             flash('Scores cannot be negative')
         else:
             try:
+                # Updates game table with scores for specific game
                 db.execute(
                     'UPDATE games SET home_score=?, away_score=? WHERE id=?',
                     [home_score, away_score, game_id])
@@ -989,7 +994,11 @@ def submit_score():
                 return redirect(url_for('view_scores'))
             except:
                 flash('Error Saving Score')
+
+    # If league is selected, fetches all games
     if league_selected:
+            # Query to get games without scores
+            # Joins games table with team table to get both home and away names for team
             cur = db.execute('''SELECT games.id, games.game_date, home.name as home_team, away.name as away_team
                            FROM games JOIN teams home ON games.home_team_id = home.id JOIN teams away ON games.away_team_id = away.id
                                 WHERE games.league_id = ?AND games.home_score IS NULL
@@ -1433,6 +1442,7 @@ def change_league_status():
 def edit_score():
     activeuser = get_current_user()
 
+    # Checks if current user exists and has admin role, otherwise redirects
     if activeuser is None or activeuser['role'] != "admin":
         flash("You do not have permission to view that page.")
         return redirect('/')
@@ -1440,6 +1450,7 @@ def edit_score():
 
     game_id = request.args.get('game_id')
 
+    # Checks that game_id exists and is a valid integer, otherwise redirects
     if not game_id or not game_id.isdigit():
         flash('Game not found.')
         return redirect(url_for('view_scores'))
@@ -1448,11 +1459,13 @@ def edit_score():
         home_score = request.form['home_score']
         away_score = request.form['away_score']
 
+        # Checks if both scores are numbers
         if not home_score.isdigit() or not away_score.isdigit():
             flash('Scores must be numbers')
         elif int(home_score) < 0 or int(away_score) < 0:
             flash('Scores cannot be negative')
         else:
+            # If checks were successful, update the database with scores
             db.execute("UPDATE games SET home_score = ?, away_score = ? WHERE id = ?",[home_score, away_score, game_id])
             db.commit()
             flash('Score updated successfully!')
@@ -1461,6 +1474,7 @@ def edit_score():
     game = db.execute("SELECT id, home_score, away_score, game_date FROM games WHERE id = ?", [game_id])
     game = game.fetchone()
 
+    # Check if game exists, if not redirect
     if not game:
         flash('Game not found.')
         return redirect(url_for('home_page'))
@@ -1607,12 +1621,12 @@ def get_standings(league_id):
 
     standings = []
     for team in teams:
-        # wins
+        # gets team wins from table
         cur = db.execute(
             'SELECT COUNT(*) FROM games WHERE league_id = ? AND ((home_team_id = ? AND home_score > away_score) OR (away_team_id = ? AND away_score > home_score))',[league_id, team['id'], team['id']])
         wins = cur.fetchone()[0]
 
-        # losses
+        # gets team losses from the table
         cur = db.execute(
             'SELECT COUNT(*) FROM games WHERE league_id = ? AND ((home_team_id = ? AND home_score < away_score) OR (away_team_id = ? AND away_score < home_score))',[league_id, team['id'], team['id']])
         losses = cur.fetchone()[0]
