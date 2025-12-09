@@ -795,7 +795,7 @@ def create_team():
         max_teams = league_row["max_teams"]
 
         # Makes sure the user isn't already a member of another team in the league
-        in_league = db.execute("SELECT user_id FROM memberships WHERE league_id=?", (league_id,))
+        in_league = db.execute("SELECT user_id FROM memberships WHERE league_id=?", (league_id,)).fetchall()
         if in_league:
             flash("You are already a member of a team in this league")
             return redirect(url_for('team_creation'))
